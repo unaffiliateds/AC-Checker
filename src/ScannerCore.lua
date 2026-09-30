@@ -4,47 +4,39 @@
 
     Central controller.
 
-    Responsibilities:
-    - Create scanner modules
-    - Start/stop scanners
-    - Store detections
-    - Create/update the admin GUI
-    - Expose scanner status
+    The Loader provides:
+        LoopScanner
+        JumpScanner
+        Logs
+
+    This module does not depend on a particular
+    Roblox folder hierarchy.
 ]]
 
-local Players = game:GetService("Players")
-
-local LoopScanner =
-	require(
-		script.Parent:WaitForChild(
-			"LoopScanner"
-		)
-	)
-
-local JumpScanner =
-	require(
-		script.Parent:WaitForChild(
-			"JumpScanner"
-		)
-	)
-
-local Logs =
-	require(
-		script.Parent:WaitForChild(
-			"Logs"
-		)
-	)
+local Players =
+	game:GetService("Players")
 
 local ScannerCore = {}
 ScannerCore.__index = ScannerCore
 
-function ScannerCore.new(config)
-	config = config or {}
+function ScannerCore.new(
+	config,
+	modules
+)
 
-	local self = setmetatable({}, ScannerCore)
+	config = config or {}
+	modules = modules or {}
+
+	local self =
+		setmetatable(
+			{},
+			ScannerCore
+		)
 
 	self.Config = {
-		Enabled = config.Enabled ~= false,
+
+		Enabled =
+			config.Enabled ~= false,
 
 		BaseSpeed =
 			config.BaseSpeed or 18,
@@ -62,23 +54,36 @@ function ScannerCore.new(config)
 			config.RequiredViolations or 3,
 
 		ViolationWindow =
-			config.ViolationWindow or 1.0,
+			config.ViolationWindow or 1,
 
-		-- During development you can show the GUI
-		-- to everybody.
 		ShowGuiToAll =
-			config.ShowGuiToAll == true,
+			config.ShowGuiToAll ~= false,
 
-		-- Admin user IDs.
 		AdminUserIds =
 			config.AdminUserIds or {},
 	}
 
+	assert(
+		modules.LoopScanner,
+		"[AC-Checker] LoopScanner was not provided."
+	)
+
+	assert(
+		modules.JumpScanner,
+		"[AC-Checker] JumpScanner was not provided."
+	)
+
+	assert(
+		modules.Logs,
+		"[AC-Checker] Logs was not provided."
+	)
+
 	self.Logs =
-		Logs.new(500)
+		modules.Logs.new(500)
 
 	self.LoopScanner =
-		LoopScanner.new({
+		modules.LoopScanner.new({
+
 			BaseSpeed =
 				self.Config.BaseSpeed,
 
@@ -99,25 +104,27 @@ function ScannerCore.new(config)
 
 			OnDetection =
 				function(data)
+
 					self:HandleDetection(
 						data
 					)
+
 				end,
 		})
 
 	self.JumpScanner =
-		JumpScanner.new()
+		modules.JumpScanner.new()
 
 	self.Started = false
 
-	self.GuiConnections = {}
-
-	self.LastGuiUpdate = 0
+	self.PlayerAddedConnection = nil
+	self.PlayerRemovingConnection = nil
 
 	return self
 end
 
 function ScannerCore:IsAdmin(player)
+
 	if self.Config.ShowGuiToAll then
 		return true
 	end
@@ -125,6 +132,7 @@ function ScannerCore:IsAdmin(player)
 	for _, userId in ipairs(
 		self.Config.AdminUserIds
 	) do
+
 		if player.UserId == userId then
 			return true
 		end
@@ -134,12 +142,13 @@ function ScannerCore:IsAdmin(player)
 end
 
 function ScannerCore:HandleDetection(data)
+
 	local entry =
 		self.Logs:Add(data)
 
 	print(
 		string.format(
-			"[AC-Checker] SPEED DETECTION | %s | %.2f studs/s | limit %.2f | sprint=%s | log #%d",
+			"[AC-Checker] SPEED DETECTION | %s | %.2f studs/s | limit %.2f | sprint=%s",
 
 			entry.PlayerName,
 
@@ -149,9 +158,7 @@ function ScannerCore:HandleDetection(data)
 
 			tostring(
 				entry.Sprinting
-			),
-
-			entry.Id
+			)
 		)
 	)
 
@@ -163,6 +170,7 @@ end
 --------------------------------------------------
 
 function ScannerCore:CreateGui(player)
+
 	if not self:IsAdmin(player) then
 		return
 	end
@@ -176,25 +184,25 @@ function ScannerCore:CreateGui(player)
 		return
 	end
 
-	local oldGui =
+	local existing =
 		playerGui:FindFirstChild(
 			"ACCheckerGui"
 		)
 
-	if oldGui then
-		oldGui:Destroy()
+	if existing then
+		existing:Destroy()
 	end
 
-	local screenGui =
+	local gui =
 		Instance.new("ScreenGui")
 
-	screenGui.Name =
+	gui.Name =
 		"ACCheckerGui"
 
-	screenGui.ResetOnSpawn =
+	gui.ResetOnSpawn =
 		false
 
-	screenGui.Parent =
+	gui.Parent =
 		playerGui
 
 	local frame =
@@ -206,7 +214,7 @@ function ScannerCore:CreateGui(player)
 	frame.Size =
 		UDim2.fromOffset(
 			430,
-			310
+			320
 		)
 
 	frame.Position =
@@ -214,7 +222,7 @@ function ScannerCore:CreateGui(player)
 			0,
 			25,
 			0.5,
-			-155
+			-160
 		)
 
 	frame.BackgroundColor3 =
@@ -227,13 +235,10 @@ function ScannerCore:CreateGui(player)
 	frame.BorderSizePixel = 0
 
 	frame.Parent =
-		screenGui
+		gui
 
 	local title =
 		Instance.new("TextLabel")
-
-	title.Name =
-		"Title"
 
 	title.Size =
 		UDim2.new(
@@ -255,7 +260,7 @@ function ScannerCore:CreateGui(player)
 			255
 		)
 
-	title.TextSize = 24
+	title.TextSize = 23
 
 	title.Font =
 		Enum.Font.GothamBold
@@ -272,7 +277,7 @@ function ScannerCore:CreateGui(player)
 	status.Position =
 		UDim2.fromOffset(
 			20,
-			50
+			48
 		)
 
 	status.Size =
@@ -289,7 +294,7 @@ function ScannerCore:CreateGui(player)
 		Enum.TextXAlignment.Left
 
 	status.Text =
-		"STATUS: ONLINE"
+		"● ONLINE"
 
 	status.TextColor3 =
 		Color3.fromRGB(
@@ -298,7 +303,7 @@ function ScannerCore:CreateGui(player)
 			120
 		)
 
-	status.TextSize = 16
+	status.TextSize = 15
 
 	status.Font =
 		Enum.Font.GothamMedium
@@ -315,7 +320,7 @@ function ScannerCore:CreateGui(player)
 	info.Position =
 		UDim2.fromOffset(
 			20,
-			85
+			80
 		)
 
 	info.Size =
@@ -338,7 +343,7 @@ function ScannerCore:CreateGui(player)
 			210
 		)
 
-	info.TextSize = 14
+	info.TextSize = 13
 
 	info.Font =
 		Enum.Font.Gotham
@@ -355,7 +360,7 @@ function ScannerCore:CreateGui(player)
 	list.Position =
 		UDim2.fromOffset(
 			20,
-			135
+			130
 		)
 
 	list.Size =
@@ -363,7 +368,7 @@ function ScannerCore:CreateGui(player)
 			1,
 			-40,
 			1,
-			-155
+			-150
 		)
 
 	list.BackgroundColor3 =
@@ -375,8 +380,7 @@ function ScannerCore:CreateGui(player)
 
 	list.BorderSizePixel = 0
 
-	list.ScrollBarThickness =
-		5
+	list.ScrollBarThickness = 5
 
 	list.CanvasSize =
 		UDim2.new()
@@ -392,7 +396,7 @@ function ScannerCore:CreateGui(player)
 	layout.Padding =
 		UDim.new(
 			0,
-			5
+			4
 		)
 
 	layout.Parent =
@@ -403,7 +407,10 @@ function ScannerCore:CreateGui(player)
 	)
 end
 
-function ScannerCore:UpdateGuiForPlayer(player)
+function ScannerCore:UpdateGuiForPlayer(
+	player
+)
+
 	if not self:IsAdmin(player) then
 		return
 	end
@@ -443,8 +450,6 @@ function ScannerCore:UpdateGuiForPlayer(player)
 		)
 
 	if info then
-		local count =
-			self.Logs:GetCount()
 
 		info.Text =
 			string.format(
@@ -454,15 +459,13 @@ function ScannerCore:UpdateGuiForPlayer(player)
 
 				self.Config.SprintSpeed,
 
-				count
+				self.Logs:GetCount()
 			)
 	end
 
 	if not list then
 		return
 	end
-
-	-- Remove old detection rows.
 
 	for _, child in ipairs(
 		list:GetChildren()
@@ -475,8 +478,6 @@ function ScannerCore:UpdateGuiForPlayer(player)
 
 	local entries =
 		self.Logs:GetEntries()
-
-	-- Show newest first.
 
 	for i = #entries, 1, -1 do
 
@@ -535,22 +536,29 @@ function ScannerCore:UpdateGuiForPlayer(player)
 			list
 	end
 
-	task.defer(function()
-		list.CanvasSize =
-			UDim2.new(
-				0,
-				0,
-				0,
-				list.AbsoluteCanvasSize.Y
-			)
-	end)
+	task.defer(
+		function()
+
+			list.CanvasSize =
+				UDim2.new(
+					0,
+					0,
+					0,
+					list.AbsoluteCanvasSize.Y
+				)
+
+		end
+	)
 end
 
 function ScannerCore:UpdateGui()
+
 	for _, player in ipairs(
 		Players:GetPlayers()
 	) do
+
 		if self:IsAdmin(player) then
+
 			self:UpdateGuiForPlayer(
 				player
 			)
@@ -559,17 +567,19 @@ function ScannerCore:UpdateGui()
 end
 
 --------------------------------------------------
--- START / STOP
+-- LIFECYCLE
 --------------------------------------------------
 
 function ScannerCore:Start()
+
 	if self.Started then
 		return
 	end
 
 	if not self.Config.Enabled then
+
 		warn(
-			"[AC-Checker] Scanner is disabled."
+			"[AC-Checker] Scanner disabled."
 		)
 
 		return
@@ -583,41 +593,31 @@ function ScannerCore:Start()
 	for _, player in ipairs(
 		Players:GetPlayers()
 	) do
-		task.defer(function()
-			self:CreateGui(player)
-		end)
+
+		task.defer(
+			function()
+				self:CreateGui(player)
+			end
+		)
 	end
 
-	table.insert(
-		self.GuiConnections,
-
+	self.PlayerAddedConnection =
 		Players.PlayerAdded:Connect(
 			function(player)
 
-				player.CharacterAdded:Connect(
+				task.defer(
 					function()
-						task.wait(1)
-
-						self:CreateGui(
-							player
-						)
+						self:CreateGui(player)
 					end
 				)
 
-				task.defer(function()
-					self:CreateGui(
-						player
-					)
-				end)
 			end
 		)
-	)
 
-	table.insert(
-		self.GuiConnections,
-
+	self.PlayerRemovingConnection =
 		Players.PlayerRemoving:Connect(
 			function(player)
+
 				self.Logs:ClearPlayer(
 					player.UserId
 				)
@@ -628,25 +628,15 @@ function ScannerCore:Start()
 					)
 			end
 		)
-	)
-
-	print("[AC-Checker] Scanner started.")
-	print(
-		string.format(
-			"[AC-Checker] Normal: %.1f studs/s",
-			self.Config.BaseSpeed
-		)
-	)
 
 	print(
-		string.format(
-			"[AC-Checker] Sprint: %.1f studs/s",
-			self.Config.SprintSpeed
-		)
+		"[AC-Checker] Scanner started."
 	)
+
 end
 
 function ScannerCore:Stop()
+
 	if not self.Started then
 		return
 	end
@@ -656,21 +646,25 @@ function ScannerCore:Stop()
 	self.LoopScanner:Stop()
 	self.JumpScanner:Stop()
 
-	for _, connection in ipairs(
-		self.GuiConnections
-	) do
-		connection:Disconnect()
+	if self.PlayerAddedConnection then
+		self.PlayerAddedConnection:Disconnect()
+		self.PlayerAddedConnection = nil
 	end
 
-	table.clear(
-		self.GuiConnections
-	)
+	if self.PlayerRemovingConnection then
+		self.PlayerRemovingConnection:Disconnect()
+		self.PlayerRemovingConnection = nil
+	end
 
-	print("[AC-Checker] Scanner stopped.")
+	print(
+		"[AC-Checker] Scanner stopped."
+	)
 end
 
 function ScannerCore:GetStatus()
+
 	return {
+
 		Enabled =
 			self.Config.Enabled,
 
