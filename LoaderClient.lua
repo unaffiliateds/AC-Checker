@@ -2,68 +2,135 @@
     AC-Checker
     LoaderClient.lua
 
-    Client-side entry point.
+    Entry point.
 
-    Expected runtime layout:
+    The loader is responsible for wiring the modules together.
 
-    AC-Checker
-    ├── LoaderClient
-    └── src
-        ├── ScannerCore
-        ├── LoopScanner
-        ├── JumpScanner
-        └── Logs
+    It does NOT contain scanner logic or GUI logic.
 ]]
 
-local parent = script.Parent
+local root =
+	script.Parent
 
-if not parent then
-	error(
-		"[AC-Checker] LoaderClient has no parent."
+local src =
+	root:WaitForChild(
+		"src"
 	)
-end
 
-local src = parent:FindFirstChild("src")
+--------------------------------------------------
+-- LOAD MODULES
+--------------------------------------------------
 
-if not src then
-	error(
-		"[AC-Checker] Could not find 'src' beside LoaderClient. " ..
-		"Expected AC-Checker/LoaderClient and AC-Checker/src."
+local ScannerCore =
+	require(
+		src:WaitForChild(
+			"ScannerCore"
+		)
 	)
-end
 
-local ScannerCore = require(
-	src:WaitForChild("ScannerCore")
-)
+local LoopScanner =
+	require(
+		src:WaitForChild(
+			"LoopScanner"
+		)
+	)
 
-local Scanner = ScannerCore.new({
+local JumpScanner =
+	require(
+		src:WaitForChild(
+			"JumpScanner"
+		)
+	)
+
+local Logs =
+	require(
+		src:WaitForChild(
+			"Logs"
+		)
+	)
+
+--------------------------------------------------
+-- CONFIGURATION
+--------------------------------------------------
+
+local CONFIG = {
 
 	Enabled = true,
 
-	-- Normal movement
+	-- Normal movement speed.
 	BaseSpeed = 18,
 
-	-- Sprint movement
+	-- Sprint movement speed.
 	SprintSpeed = 21,
 
-	-- Allowance for normal client/network variance
+	-- Physics/network allowance.
 	SpeedTolerance = 1.25,
 
+	-- Movement sampling.
 	SampleInterval = 0.15,
 
-	-- Consecutive samples required
+	-- Consecutive violations required.
 	RequiredViolations = 3,
 
-	ViolationWindow = 1.0,
+	-- Maximum gap between violations.
+	ViolationWindow = 1,
 
-	-- Development mode
+	-- Development mode.
+	--
+	-- Set false later and put your UserId
+	-- into AdminUserIds.
 	ShowGuiToAll = true,
 
-	AdminUserIds = {},
-})
+	AdminUserIds = {
+		-- 123456789,
+	},
+}
+
+--------------------------------------------------
+-- CREATE CORE
+--------------------------------------------------
+
+local Scanner =
+	ScannerCore.new(
+		CONFIG,
+		{
+			LoopScanner =
+				LoopScanner,
+
+			JumpScanner =
+				JumpScanner,
+
+			Logs =
+				Logs,
+		}
+	)
+
+--------------------------------------------------
+-- START EVERYTHING
+--------------------------------------------------
 
 Scanner:Start()
 
 print(
 	"[AC-Checker] LoaderClient initialized."
+)
+
+print(
+	"[AC-Checker] Modules loaded:"
+)
+
+print(
+	"  ScannerCore"
+)
+
+print(
+	"  LoopScanner"
+)
+
+print(
+	"  JumpScanner"
+)
+
+print(
+	"  Logs"
 )
