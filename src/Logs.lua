@@ -2,7 +2,7 @@
     AC-Checker
     Logs.lua
 
-    In-memory detection log.
+    Detection storage.
 ]]
 
 local Logs = {}
