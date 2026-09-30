@@ -2,47 +2,61 @@
     AC-Checker
     JumpScanner.lua
 
-    Jump detection will be implemented after the movement
-    scanner has been tested.
+    Jump detection placeholder.
 
-    Planned checks:
+    This will eventually handle:
 
-    - Maximum jump height
+    - Jump height
     - Upward velocity
-    - Repeated abnormal jumps
-    - Roblox physics/legitimate modifiers
+    - Abnormal repeated jumps
+    - Legitimate jump modifiers
 ]]
 
 local JumpScanner = {}
 JumpScanner.__index = JumpScanner
 
 function JumpScanner.new(config)
-	local self = setmetatable({}, JumpScanner)
 
-	self.Config = config or {}
+	local self =
+		setmetatable(
+			{},
+			JumpScanner
+		)
+
+	self.Config =
+		config or {}
+
 	self.Running = false
 
 	return self
 end
 
 function JumpScanner:Start()
+
 	if self.Running then
 		return
 	end
 
 	self.Running = true
 
-	print("[AC-Checker] JumpScanner started (placeholder).")
+	print(
+		"[AC-Checker] JumpScanner started."
+	)
+
 end
 
 function JumpScanner:Stop()
+
 	if not self.Running then
 		return
 	end
 
 	self.Running = false
 
-	print("[AC-Checker] JumpScanner stopped.")
+	print(
+		"[AC-Checker] JumpScanner stopped."
+	)
+
 end
 
 return JumpScanner
