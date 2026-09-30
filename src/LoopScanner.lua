@@ -2,18 +2,16 @@
     AC-Checker
     LoopScanner.lua
 
-    Server-side horizontal movement detector.
+    Detects abnormal horizontal movement.
 
-    Intended limits:
+    Normal:
+        18 studs/sec
 
-        Normal = 18 studs/sec
-        Sprint = 21 studs/sec
+    Sprint:
+        21 studs/sec
 
-    A tolerance is applied to reduce false positives caused
-    by normal Roblox physics/network variance.
-
-    A player must exceed the limit for several consecutive
-    samples before a detection is generated.
+    Vertical movement is ignored here.
+    JumpScanner will handle that later.
 ]]
 
 local Players = game:GetService("Players")
@@ -32,19 +30,20 @@ function LoopScanner.new(config)
 
 	self.Tolerance = config.Tolerance or 1.25
 
-	self.SampleInterval = config.SampleInterval or 0.15
+	self.SampleInterval =
+		config.SampleInterval or 0.15
 
-	-- Number of consecutive over-limit samples required.
-	self.RequiredViolations = config.RequiredViolations or 3
+	self.RequiredViolations =
+		config.RequiredViolations or 3
 
-	-- Maximum amount of time between violations before
-	-- the counter is reset.
-	self.ViolationWindow = config.ViolationWindow or 1.0
+	self.ViolationWindow =
+		config.ViolationWindow or 1
 
-	self.OnDetection = config.OnDetection
+	self.OnDetection =
+		config.OnDetection
 
 	self.LastPositions = {}
-	self.LastSampleTimes = {}
+	self.LastTimes = {}
 
 	self.ViolationCounts = {}
 	self.LastViolationTimes = {}
@@ -56,12 +55,12 @@ function LoopScanner.new(config)
 end
 
 function LoopScanner:IsSprinting(player, humanoid)
-	-- Preferred method:
-	-- Your server-side sprint system should set:
+
+	-- Preferred method.
+	--
+	-- Your sprint system can use:
 	--
 	-- player:SetAttribute("Sprinting", true)
-	--
-	-- and false when sprinting ends.
 
 	if player:GetAttribute("Sprinting") == true then
 		return true
@@ -69,26 +68,35 @@ function LoopScanner:IsSprinting(player, humanoid)
 
 	-- Optional BoolValue support.
 
-	local sprintValue = player:FindFirstChild("Sprinting")
+	local sprintValue =
+		player:FindFirstChild("Sprinting")
 
-	if sprintValue and sprintValue:IsA("BoolValue") then
+	if sprintValue
+		and sprintValue:IsA("BoolValue") then
+
 		return sprintValue.Value
 	end
 
-	-- Basic testing fallback.
-	--
-	-- This is useful while we're building/testing, but later
-	-- we'll connect this to the actual sprint system.
+	-- Temporary testing fallback.
 
-	if humanoid and humanoid.WalkSpeed > self.BaseSpeed then
+	if humanoid
+		and humanoid.WalkSpeed > self.BaseSpeed then
+
 		return true
 	end
 
 	return false
 end
 
-function LoopScanner:GetAllowedSpeed(player, humanoid)
-	local sprinting = self:IsSprinting(player, humanoid)
+function LoopScanner:GetAllowedSpeed(
+	player,
+	humanoid
+)
+	local sprinting =
+		self:IsSprinting(
+			player,
+			humanoid
+		)
 
 	if sprinting then
 		return self.SprintSpeed, true
@@ -98,15 +106,21 @@ function LoopScanner:GetAllowedSpeed(player, humanoid)
 end
 
 function LoopScanner:ResetPlayer(player)
+
 	self.LastPositions[player] = nil
-	self.LastSampleTimes[player] = nil
+	self.LastTimes[player] = nil
 
 	self.ViolationCounts[player] = 0
 	self.LastViolationTimes[player] = nil
 end
 
-function LoopScanner:ProcessPlayer(player, currentTime)
-	local character = player.Character
+function LoopScanner:CheckPlayer(
+	player,
+	currentTime
+)
+
+	local character =
+		player.Character
 
 	if not character then
 		self:ResetPlayer(player)
@@ -114,10 +128,14 @@ function LoopScanner:ProcessPlayer(player, currentTime)
 	end
 
 	local humanoid =
-		character:FindFirstChildOfClass("Humanoid")
+		character:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
 	local root =
-		character:FindFirstChild("HumanoidRootPart")
+		character:FindFirstChild(
+			"HumanoidRootPart"
+		)
 
 	if not humanoid or not root then
 		self:ResetPlayer(player)
@@ -129,28 +147,26 @@ function LoopScanner:ProcessPlayer(player, currentTime)
 		return
 	end
 
-	-- Store the previous position/time.
-
 	local previousPosition =
 		self.LastPositions[player]
 
-	local previousSampleTime =
-		self.LastSampleTimes[player]
+	local previousTime =
+		self.LastTimes[player]
 
 	self.LastPositions[player] =
 		root.Position
 
-	self.LastSampleTimes[player] =
+	self.LastTimes[player] =
 		currentTime
 
-	-- Need an initial sample before calculating speed.
+	if not previousPosition
+		or not previousTime then
 
-	if not previousPosition or not previousSampleTime then
 		return
 	end
 
 	local deltaTime =
-		currentTime - previousSampleTime
+		currentTime - previousTime
 
 	if deltaTime <= 0 then
 		return
@@ -160,13 +176,14 @@ function LoopScanner:ProcessPlayer(player, currentTime)
 		return
 	end
 
-	-- Only horizontal movement counts.
+	-- Ignore Y movement.
 	--
-	-- Y is ignored so jumping/falling is handled separately
-	-- by JumpScanner.
+	-- This prevents normal jumping from being treated
+	-- as horizontal speed.
 
 	local displacement =
-		root.Position - previousPosition
+		root.Position -
+		previousPosition
 
 	local horizontal =
 		Vector3.new(
@@ -190,26 +207,25 @@ function LoopScanner:ProcessPlayer(player, currentTime)
 	local allowedSpeed =
 		limit + self.Tolerance
 
-	local overLimit =
-		speed > allowedSpeed
+	if speed <= allowedSpeed then
 
-	if not overLimit then
 		self.ViolationCounts[player] = 0
 		self.LastViolationTimes[player] = nil
 
 		return
 	end
 
-	-- Track consecutive violations.
-
 	local lastViolation =
 		self.LastViolationTimes[player]
 
 	if not lastViolation
-		or currentTime - lastViolation > self.ViolationWindow then
+		or currentTime - lastViolation >
+			self.ViolationWindow then
 
 		self.ViolationCounts[player] = 1
+
 	else
+
 		self.ViolationCounts[player] =
 			(self.ViolationCounts[player] or 0) + 1
 	end
@@ -217,19 +233,16 @@ function LoopScanner:ProcessPlayer(player, currentTime)
 	self.LastViolationTimes[player] =
 		currentTime
 
-	-- Not enough consecutive samples yet.
-
 	if self.ViolationCounts[player] <
 		self.RequiredViolations then
 
 		return
 	end
 
-	-- Detection confirmed.
-
 	self.ViolationCounts[player] = 0
 
 	local detection = {
+
 		Type = "Speed",
 
 		Player = player,
@@ -251,6 +264,7 @@ function LoopScanner:ProcessPlayer(player, currentTime)
 end
 
 function LoopScanner:Start()
+
 	if self.Running then
 		return
 	end
@@ -258,27 +272,35 @@ function LoopScanner:Start()
 	self.Running = true
 
 	self.Connection =
-		RunService.Heartbeat:Connect(function()
-			if not self.Running then
-				return
+		RunService.Heartbeat:Connect(
+			function()
+
+				if not self.Running then
+					return
+				end
+
+				local currentTime =
+					os.clock()
+
+				for _, player in ipairs(
+					Players:GetPlayers()
+				) do
+
+					self:CheckPlayer(
+						player,
+						currentTime
+					)
+				end
 			end
+		)
 
-			local currentTime = os.clock()
-
-			for _, player in ipairs(
-				Players:GetPlayers()
-			) do
-				self:ProcessPlayer(
-					player,
-					currentTime
-				)
-			end
-		end)
-
-	print("[AC-Checker] LoopScanner started.")
+	print(
+		"[AC-Checker] LoopScanner started."
+	)
 end
 
 function LoopScanner:Stop()
+
 	self.Running = false
 
 	if self.Connection then
@@ -287,11 +309,13 @@ function LoopScanner:Stop()
 	end
 
 	table.clear(self.LastPositions)
-	table.clear(self.LastSampleTimes)
+	table.clear(self.LastTimes)
 	table.clear(self.ViolationCounts)
 	table.clear(self.LastViolationTimes)
 
-	print("[AC-Checker] LoopScanner stopped.")
+	print(
+		"[AC-Checker] LoopScanner stopped."
+	)
 end
 
 return LoopScanner
