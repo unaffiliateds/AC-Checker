@@ -1,16 +1,3 @@
---[[
-    AC-Checker
-    ScannerCore.lua
-
-    Scans all replicated players.
-    GUI is displayed only to the local player.
-
-    Tabs:
-        LOOP
-        JUMP
-        MISC
-]]
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
