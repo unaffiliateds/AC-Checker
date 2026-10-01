@@ -1,12 +1,3 @@
---[[
-    AC-Checker
-    JumpScanner.lua
-
-    Jump detection module.
-
-    GUI-ready interface.
-]]
-
 local Players =
     game:GetService("Players")
 
