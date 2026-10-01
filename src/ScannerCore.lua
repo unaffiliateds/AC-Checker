@@ -1,66 +1,499 @@
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+local Players =
+    game:GetService("Players")
 
-local LocalPlayer = Players.LocalPlayer
+local UserInputService =
+    game:GetService("UserInputService")
+
+local LocalPlayer =
+    Players.LocalPlayer
 
 local ScannerCore = {}
 ScannerCore.__index = ScannerCore
 
 --------------------------------------------------
+-- COLORS
+--------------------------------------------------
+
+local Colors = {
+
+    Background =
+        Color3.fromRGB(
+            10,
+            12,
+            16
+        ),
+
+    Main =
+        Color3.fromRGB(
+            15,
+            18,
+            23
+        ),
+
+    Header =
+        Color3.fromRGB(
+            20,
+            24,
+            30
+        ),
+
+    Sidebar =
+        Color3.fromRGB(
+            13,
+            16,
+            21
+        ),
+
+    Panel =
+        Color3.fromRGB(
+            19,
+            23,
+            29
+        ),
+
+    PanelLight =
+        Color3.fromRGB(
+            24,
+            29,
+            36
+        ),
+
+    Button =
+        Color3.fromRGB(
+            25,
+            30,
+            37
+        ),
+
+    ButtonHover =
+        Color3.fromRGB(
+            31,
+            37,
+            45
+        ),
+
+    Selected =
+        Color3.fromRGB(
+            30,
+            48,
+            41
+        ),
+
+    Accent =
+        Color3.fromRGB(
+            83,
+            220,
+            128
+        ),
+
+    AccentDark =
+        Color3.fromRGB(
+            45,
+            120,
+            72
+        ),
+
+    Text =
+        Color3.fromRGB(
+            240,
+            243,
+            247
+        ),
+
+    TextSecondary =
+        Color3.fromRGB(
+            165,
+            173,
+            184
+        ),
+
+    TextMuted =
+        Color3.fromRGB(
+            105,
+            115,
+            128
+        ),
+
+    Border =
+        Color3.fromRGB(
+            39,
+            46,
+            56
+        ),
+
+    Danger =
+        Color3.fromRGB(
+            235,
+            92,
+            92
+        ),
+
+    Warning =
+        Color3.fromRGB(
+            245,
+            181,
+            71
+        ),
+}
+
+--------------------------------------------------
+-- UI HELPERS
+--------------------------------------------------
+
+function ScannerCore:Corner(
+    object,
+    radius
+)
+
+    local corner =
+        Instance.new("UICorner")
+
+    corner.CornerRadius =
+        UDim.new(
+            0,
+            radius or 8
+        )
+
+    corner.Parent =
+        object
+
+    return corner
+end
+
+function ScannerCore:Stroke(
+    object,
+    color,
+    transparency,
+    thickness
+)
+
+    local stroke =
+        Instance.new("UIStroke")
+
+    stroke.Color =
+        color or Colors.Border
+
+    stroke.Transparency =
+        transparency or 0
+
+    stroke.Thickness =
+        thickness or 1
+
+    stroke.ApplyStrokeMode =
+        Enum.ApplyStrokeMode.Border
+
+    stroke.Parent =
+        object
+
+    return stroke
+end
+
+function ScannerCore:Padding(
+    object,
+    amount
+)
+
+    local padding =
+        Instance.new("UIPadding")
+
+    padding.PaddingTop =
+        UDim.new(0, amount)
+
+    padding.PaddingBottom =
+        UDim.new(0, amount)
+
+    padding.PaddingLeft =
+        UDim.new(0, amount)
+
+    padding.PaddingRight =
+        UDim.new(0, amount)
+
+    padding.Parent =
+        object
+
+    return padding
+end
+
+function ScannerCore:Label(
+    parent,
+    text,
+    size,
+    pos,
+    textSize
+)
+
+    local label =
+        Instance.new("TextLabel")
+
+    label.Size =
+        size
+
+    label.Position =
+        pos
+
+    label.BackgroundTransparency =
+        1
+
+    label.Text =
+        text
+
+    label.TextColor3 =
+        Colors.Text
+
+    label.TextSize =
+        textSize or 14
+
+    label.Font =
+        Enum.Font.Gotham
+
+    label.TextXAlignment =
+        Enum.TextXAlignment.Left
+
+    label.TextYAlignment =
+        Enum.TextYAlignment.Center
+
+    label.RichText =
+        false
+
+    label.Parent =
+        parent
+
+    return label
+end
+
+function ScannerCore:Button(
+    parent,
+    text,
+    size,
+    pos
+)
+
+    local button =
+        Instance.new("TextButton")
+
+    button.Size =
+        size
+
+    button.Position =
+        pos
+
+    button.BackgroundColor3 =
+        Colors.Button
+
+    button.BorderSizePixel =
+        0
+
+    button.Text =
+        text
+
+    button.TextColor3 =
+        Colors.Text
+
+    button.TextSize =
+        12
+
+    button.Font =
+        Enum.Font.GothamMedium
+
+    button.AutoButtonColor =
+        false
+
+    button.Active =
+        true
+
+    button.Selectable =
+        true
+
+    self:Corner(
+        button,
+        8
+    )
+
+    self:Stroke(
+        button,
+        Colors.Border,
+        0.25,
+        1
+    )
+
+    button.MouseEnter:Connect(
+        function()
+
+            button.BackgroundColor3 =
+                Colors.ButtonHover
+
+        end
+    )
+
+    button.MouseLeave:Connect(
+        function()
+
+            button.BackgroundColor3 =
+                Colors.Button
+
+        end
+    )
+
+    button.Parent =
+        parent
+
+    return button
+end
+
+function ScannerCore:CreateDivider(
+    parent,
+    position
+)
+
+    local divider =
+        Instance.new("Frame")
+
+    divider.Size =
+        UDim2.new(
+            1,
+            0,
+            0,
+            1
+        )
+
+    divider.Position =
+        position
+
+    divider.BackgroundColor3 =
+        Colors.Border
+
+    divider.BorderSizePixel =
+        0
+
+    divider.Parent =
+        parent
+
+    return divider
+end
+
+--------------------------------------------------
 -- CONSTRUCTOR
 --------------------------------------------------
 
-function ScannerCore.new(config, modules)
+function ScannerCore.new(
+    config,
+    modules
+)
 
-    config = config or {}
-    modules = modules or {}
+    config =
+        config or {}
 
-    local self = setmetatable({}, ScannerCore)
+    modules =
+        modules or {}
+
+    local self =
+        setmetatable(
+            {},
+            ScannerCore
+        )
 
     self.Config = {
-        Enabled = config.Enabled ~= false,
 
-        BaseSpeed = config.BaseSpeed or 18,
-        SprintSpeed = config.SprintSpeed or 21,
-        SpeedTolerance = config.SpeedTolerance or 1.25,
+        Enabled =
+            config.Enabled ~= false,
 
-        SampleInterval = config.SampleInterval or 0.15,
-        RequiredViolations = config.RequiredViolations or 3,
-        ViolationWindow = config.ViolationWindow or 1,
+        BaseSpeed =
+            config.BaseSpeed or 18,
 
-        AdminUserIds = config.AdminUserIds or {},
+        SprintSpeed =
+            config.SprintSpeed or 21,
+
+        SpeedTolerance =
+            config.SpeedTolerance or 1.25,
+
+        SampleInterval =
+            config.SampleInterval or 0.15,
+
+        RequiredViolations =
+            config.RequiredViolations or 3,
+
+        ViolationWindow =
+            config.ViolationWindow or 1,
+
+        AdminUserIds =
+            config.AdminUserIds or {},
     }
 
-    self.Logs = modules.Logs.new(500)
+    self.Logs =
+        modules.Logs.new(
+            500
+        )
 
-    self.LoopScanner = modules.LoopScanner.new({
-        BaseSpeed = self.Config.BaseSpeed,
-        SprintSpeed = self.Config.SprintSpeed,
-        Tolerance = self.Config.SpeedTolerance,
-        SampleInterval = self.Config.SampleInterval,
-        RequiredViolations = self.Config.RequiredViolations,
-        ViolationWindow = self.Config.ViolationWindow,
+    self.LoopScanner =
+        modules.LoopScanner.new({
 
-        OnDetection = function(data)
-            self:HandleDetection(data)
-        end,
-    })
+            BaseSpeed =
+                self.Config.BaseSpeed,
 
-    self.JumpScanner = modules.JumpScanner.new({
-        OnDetection = function(data)
-            self:HandleDetection(data)
-        end,
-    })
+            SprintSpeed =
+                self.Config.SprintSpeed,
 
-    self.Started = false
+            Tolerance =
+                self.Config.SpeedTolerance,
 
-    self.Gui = nil
-    self.Main = nil
-    self.Content = nil
-    self.Scale = nil
+            SampleInterval =
+                self.Config.SampleInterval,
 
-    self.ActiveTab = "Loop"
-    self.GuiSizeMode = "Small"
+            RequiredViolations =
+                self.Config.RequiredViolations,
+
+            ViolationWindow =
+                self.Config.ViolationWindow,
+
+            OnDetection =
+                function(data)
+
+                    self:HandleDetection(
+                        data
+                    )
+
+                end,
+        })
+
+    self.JumpScanner =
+        modules.JumpScanner.new({
+
+            OnDetection =
+                function(data)
+
+                    self:HandleDetection(
+                        data
+                    )
+
+                end,
+        })
+
+    self.Started =
+        false
+
+    self.Gui =
+        nil
+
+    self.Main =
+        nil
+
+    self.Content =
+        nil
+
+    self.Scale =
+        nil
+
+    self.ActiveTab =
+        "Loop"
+
+    self.GuiSizeMode =
+        "Small"
+
+    self.TabButtons =
+        {}
+
+    self.TabIndicator =
+        nil
 
     return self
 end
@@ -69,98 +502,63 @@ end
 -- DETECTIONS
 --------------------------------------------------
 
-function ScannerCore:HandleDetection(data)
+function ScannerCore:HandleDetection(
+    data
+)
 
-    local entry = self.Logs:Add(data)
+    local entry =
+        self.Logs:Add(
+            data
+        )
 
-    if entry.Type == "Speed" then
-        print(string.format(
-            "[AC-Checker] SPEED DETECTION | %s | %.2f studs/s | limit %.2f",
-            entry.PlayerName,
-            entry.Speed or 0,
-            entry.Limit or 0
-        ))
-    elseif entry.Type == "Jump" then
-        print(string.format(
-            "[AC-Checker] JUMP DETECTION | %s | %.2f studs | max %.2f",
-            entry.PlayerName,
-            entry.Height or 0,
-            entry.MaxHeight or 0
-        ))
+    if entry.Type ==
+        "Speed" then
+
+        print(
+            string.format(
+                "[AC-Checker] SPEED DETECTION | %s | %.2f studs/s | limit %.2f",
+                entry.PlayerName,
+                entry.Speed or 0,
+                entry.Limit or 0
+            )
+        )
+
+    elseif entry.Type ==
+        "Jump" then
+
+        print(
+            string.format(
+                "[AC-Checker] JUMP DETECTION | %s | %.2f studs | max %.2f",
+                entry.PlayerName,
+                entry.Height or 0,
+                entry.MaxHeight or 0
+            )
+        )
+
     end
 
     self:RefreshGui()
 end
 
 --------------------------------------------------
--- GUI HELPERS
---------------------------------------------------
-
-function ScannerCore:Label(parent, text, size, pos, textSize)
-
-    local label = Instance.new("TextLabel")
-
-    label.Size = size
-    label.Position = pos
-
-    label.BackgroundTransparency = 1
-
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(230, 230, 230)
-
-    label.TextSize = textSize or 14
-    label.Font = Enum.Font.Gotham
-
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.TextYAlignment = Enum.TextYAlignment.Center
-
-    label.Parent = parent
-
-    return label
-end
-
-function ScannerCore:Button(parent, text, size, pos)
-
-    local button = Instance.new("TextButton")
-
-    button.Size = size
-    button.Position = pos
-
-    button.BackgroundColor3 =
-        Color3.fromRGB(35, 35, 35)
-
-    button.BorderSizePixel = 0
-
-    button.Text = text
-    button.TextColor3 =
-        Color3.fromRGB(230, 230, 230)
-
-    button.TextSize = 13
-    button.Font = Enum.Font.GothamMedium
-
-    button.AutoButtonColor = true
-    button.Active = true
-
-    button.Parent = parent
-
-    return button
-end
-
---------------------------------------------------
--- SIZE
+-- SCALE
 --------------------------------------------------
 
 function ScannerCore:GetScale()
 
-    if self.GuiSizeMode == "Small" then
-        return 0.65
+    if self.GuiSizeMode ==
+        "Small" then
+
+        return 0.68
     end
 
-    if self.GuiSizeMode == "Large" then
-        return 0.95
+    if self.GuiSizeMode ==
+        "Large" then
+
+        return 0.96
     end
 
-    return 0.8
+    return 0.82
 end
 
 function ScannerCore:UpdateScale()
@@ -169,16 +567,21 @@ function ScannerCore:UpdateScale()
         return
     end
 
-    local camera = workspace.CurrentCamera
+    local camera =
+        workspace.CurrentCamera
 
     if not camera then
         return
     end
 
-    local viewport = camera.ViewportSize
+    local viewport =
+        camera.ViewportSize
 
-    local baseWidth = 600
-    local baseHeight = 360
+    local baseWidth =
+        640
+
+    local baseHeight =
+        400
 
     local fitX =
         (viewport.X - 20) /
@@ -211,65 +614,220 @@ end
 -- DRAGGING
 --------------------------------------------------
 
-function ScannerCore:MakeDraggable(frame, handle)
+function ScannerCore:MakeDraggable(
+    frame,
+    handle
+)
 
-    local dragging = false
+    local dragging =
+        false
+
     local startInput
     local startPosition
 
-    handle.InputBegan:Connect(function(input)
+    handle.InputBegan:Connect(
+        function(input)
 
-        if input.UserInputType ==
-            Enum.UserInputType.MouseButton1
-            or
-            input.UserInputType ==
-            Enum.UserInputType.Touch then
+            if
+                input.UserInputType ==
+                    Enum.UserInputType.MouseButton1
+                or
+                input.UserInputType ==
+                    Enum.UserInputType.Touch
+            then
 
-            dragging = true
+                dragging =
+                    true
 
-            startInput = input.Position
-            startPosition = frame.Position
+                startInput =
+                    input.Position
 
-            input.Changed:Connect(function()
+                startPosition =
+                    frame.Position
 
-                if input.UserInputState ==
-                    Enum.UserInputState.End then
+                input.Changed:Connect(
+                    function()
 
-                    dragging = false
+                        if
+                            input.UserInputState ==
+                                Enum.UserInputState.End
+                        then
 
-                end
-            end)
+                            dragging =
+                                false
+
+                        end
+
+                    end
+                )
+
+            end
+
         end
-    end)
+    )
 
-    UserInputService.InputChanged:Connect(function(input)
+    UserInputService.InputChanged:Connect(
+        function(input)
 
-        if not dragging then
-            return
+            if not dragging then
+                return
+            end
+
+            if
+                input.UserInputType ~=
+                    Enum.UserInputType.MouseMovement
+                and
+                input.UserInputType ~=
+                    Enum.UserInputType.Touch
+            then
+
+                return
+            end
+
+            local delta =
+                input.Position -
+                startInput
+
+            frame.Position =
+                UDim2.new(
+
+                    startPosition.X.Scale,
+
+                    startPosition.X.Offset +
+                        delta.X,
+
+                    startPosition.Y.Scale,
+
+                    startPosition.Y.Offset +
+                        delta.Y
+                )
+
         end
+    )
+end
 
-        if input.UserInputType ~=
-            Enum.UserInputType.MouseMovement
-            and
-            input.UserInputType ~=
-            Enum.UserInputType.Touch then
+--------------------------------------------------
+-- TAB STYLE
+--------------------------------------------------
 
-            return
+function ScannerCore:UpdateTabs()
+
+    for name, button in
+        pairs(self.TabButtons) do
+
+        if name ==
+            self.ActiveTab then
+
+            button.BackgroundColor3 =
+                Colors.Selected
+
+            button.TextColor3 =
+                Colors.Text
+
+        else
+
+            button.BackgroundColor3 =
+                Colors.Button
+
+            button.TextColor3 =
+                Colors.TextSecondary
+
         end
+    end
+end
 
-        local delta =
-            input.Position -
-            startInput
+--------------------------------------------------
+-- STAT CARD
+--------------------------------------------------
 
-        frame.Position =
+function ScannerCore:CreateStatCard(
+    parent,
+    title,
+    value,
+    x
+)
+
+    local card =
+        Instance.new("Frame")
+
+    card.Size =
+        UDim2.new(
+            0.31,
+            0,
+            0,
+            62
+        )
+
+    card.Position =
+        UDim2.new(
+            x,
+            0,
+            0,
+            0
+        )
+
+    card.BackgroundColor3 =
+        Colors.Panel
+
+    card.BorderSizePixel =
+        0
+
+    self:Corner(
+        card,
+        10
+    )
+
+    self:Stroke(
+        card,
+        Colors.Border,
+        0.2,
+        1
+    )
+
+    card.Parent =
+        parent
+
+    local titleLabel =
+        self:Label(
+            card,
+            title,
             UDim2.new(
-                startPosition.X.Scale,
-                startPosition.X.Offset + delta.X,
+                1,
+                -20,
+                0,
+                22
+            ),
+            UDim2.fromOffset(
+                10,
+                5
+            ),
+            9
+        )
 
-                startPosition.Y.Scale,
-                startPosition.Y.Offset + delta.Y
-            )
-    end)
+    titleLabel.TextColor3 =
+        Colors.TextMuted
+
+    local valueLabel =
+        self:Label(
+            card,
+            value,
+            UDim2.new(
+                1,
+                -20,
+                0,
+                28
+            ),
+            UDim2.fromOffset(
+                10,
+                27
+            ),
+            15
+        )
+
+    valueLabel.Font =
+        Enum.Font.GothamBold
+
+    return card
 end
 
 --------------------------------------------------
@@ -295,20 +853,29 @@ function ScannerCore:CreateGui()
     local gui =
         Instance.new("ScreenGui")
 
-    gui.Name = "ACCheckerGui"
+    gui.Name =
+        "ACCheckerGui"
 
-    gui.ResetOnSpawn = false
-    gui.Enabled = true
+    gui.ResetOnSpawn =
+        false
 
-    -- Keep it above normal Roblox interfaces.
-    gui.DisplayOrder = 9999
+    gui.Enabled =
+        true
+
+    gui.DisplayOrder =
+        9999
 
     gui.ZIndexBehavior =
         Enum.ZIndexBehavior.Global
 
-    gui.Parent = playerGui
+    gui.IgnoreGuiInset =
+        true
 
-    self.Gui = gui
+    gui.Parent =
+        playerGui
+
+    self.Gui =
+        gui
 
     --------------------------------------------------
     -- SCALE
@@ -320,9 +887,11 @@ function ScannerCore:CreateGui()
     scale.Scale =
         self:GetScale()
 
-    scale.Parent = gui
+    scale.Parent =
+        gui
 
-    self.Scale = scale
+    self.Scale =
+        scale
 
     --------------------------------------------------
     -- MAIN
@@ -331,12 +900,13 @@ function ScannerCore:CreateGui()
     local main =
         Instance.new("Frame")
 
-    main.Name = "Main"
+    main.Name =
+        "Main"
 
     main.Size =
         UDim2.fromOffset(
-            600,
-            360
+            640,
+            400
         )
 
     main.AnchorPoint =
@@ -354,43 +924,94 @@ function ScannerCore:CreateGui()
         )
 
     main.BackgroundColor3 =
-        Color3.fromRGB(
-            16,
-            16,
-            16
-        )
+        Colors.Main
 
-    main.BorderSizePixel = 0
+    main.BorderSizePixel =
+        0
 
-    main.Parent = gui
+    main.ClipsDescendants =
+        true
 
-    self.Main = main
+    self:Corner(
+        main,
+        16
+    )
+
+    self:Stroke(
+        main,
+        Colors.Border,
+        0,
+        1
+    )
+
+    main.Parent =
+        gui
+
+    self.Main =
+        main
 
     --------------------------------------------------
-    -- TITLE
+    -- TOP HEADER
     --------------------------------------------------
 
     local titleBar =
         Instance.new("Frame")
+
+    titleBar.Name =
+        "TitleBar"
 
     titleBar.Size =
         UDim2.new(
             1,
             0,
             0,
-            50
+            58
         )
 
     titleBar.BackgroundColor3 =
-        Color3.fromRGB(
-            24,
-            24,
-            24
+        Colors.Header
+
+    titleBar.BorderSizePixel =
+        0
+
+    titleBar.Parent =
+        main
+
+    --------------------------------------------------
+    -- HEADER ACCENT
+    --------------------------------------------------
+
+    local accent =
+        Instance.new("Frame")
+
+    accent.Size =
+        UDim2.new(
+            1,
+            0,
+            0,
+            2
         )
 
-    titleBar.BorderSizePixel = 0
+    accent.Position =
+        UDim2.new(
+            0,
+            0,
+            1,
+            -2
+        )
 
-    titleBar.Parent = main
+    accent.BackgroundColor3 =
+        Colors.Accent
+
+    accent.BorderSizePixel =
+        0
+
+    accent.Parent =
+        titleBar
+
+    --------------------------------------------------
+    -- TITLE
+    --------------------------------------------------
 
     local title =
         self:Label(
@@ -398,46 +1019,141 @@ function ScannerCore:CreateGui()
             "AC-CHECKER",
             UDim2.new(
                 1,
-                -120,
-                1,
-                0
+                -220,
+                0,
+                30
             ),
             UDim2.fromOffset(
-                15,
-                0
+                18,
+                9
             ),
-            18
+            19
         )
 
     title.Font =
         Enum.Font.GothamBold
 
-    local online =
+    --------------------------------------------------
+    -- SUBTITLE
+    --------------------------------------------------
+
+    local subtitle =
         self:Label(
             titleBar,
-            "● ONLINE",
-            UDim2.fromOffset(
-                100,
-                30
-            ),
+            "Client-side monitoring interface",
             UDim2.new(
                 1,
-                -110,
-                0.5,
-                -15
+                -220,
+                0,
+                18
             ),
-            11
+            UDim2.fromOffset(
+                19,
+                32
+            ),
+            9
         )
 
-    online.TextXAlignment =
-        Enum.TextXAlignment.Right
+    subtitle.TextColor3 =
+        Colors.TextMuted
 
-    online.TextColor3 =
+    --------------------------------------------------
+    -- ONLINE STATUS
+    --------------------------------------------------
+
+    local online =
+        Instance.new("Frame")
+
+    online.Size =
+        UDim2.fromOffset(
+            103,
+            32
+        )
+
+    online.Position =
+        UDim2.new(
+            1,
+            -118,
+            0,
+            13
+        )
+
+    online.BackgroundColor3 =
         Color3.fromRGB(
-            80,
-            220,
-            120
+            23,
+            42,
+            31
         )
+
+    online.BorderSizePixel =
+        0
+
+    self:Corner(
+        online,
+        8
+    )
+
+    self:Stroke(
+        online,
+        Colors.AccentDark,
+        0.25,
+        1
+    )
+
+    online.Parent =
+        titleBar
+
+    local statusDot =
+        Instance.new("Frame")
+
+    statusDot.Size =
+        UDim2.fromOffset(
+            7,
+            7
+        )
+
+    statusDot.Position =
+        UDim2.fromOffset(
+            11,
+            12
+        )
+
+    statusDot.BackgroundColor3 =
+        Colors.Accent
+
+    statusDot.BorderSizePixel =
+        0
+
+    self:Corner(
+        statusDot,
+        99
+    )
+
+    statusDot.Parent =
+        online
+
+    local statusText =
+        self:Label(
+            online,
+            "ONLINE",
+            UDim2.new(
+                1,
+                -28,
+                1,
+                0
+            ),
+            UDim2.fromOffset(
+                25,
+                0
+            ),
+            9
+        )
+
+    statusText.Font =
+        Enum.Font.GothamBold
+
+    statusText.TextColor3 =
+        Colors.Accent
 
     self:MakeDraggable(
         main,
@@ -451,51 +1167,62 @@ function ScannerCore:CreateGui()
     local sidebar =
         Instance.new("Frame")
 
+    sidebar.Name =
+        "Sidebar"
+
     sidebar.Size =
         UDim2.new(
             0,
-            115,
+            145,
             1,
-            -50
+            -58
         )
 
     sidebar.Position =
         UDim2.fromOffset(
             0,
-            50
+            58
         )
 
     sidebar.BackgroundColor3 =
-        Color3.fromRGB(
-            21,
-            21,
-            21
-        )
+        Colors.Sidebar
 
-    sidebar.BorderSizePixel = 0
+    sidebar.BorderSizePixel =
+        0
 
-    sidebar.Parent = main
+    sidebar.Parent =
+        main
 
-    self:Label(
-        sidebar,
-        "SCANNERS",
-        UDim2.new(
-            1,
-            -20,
-            0,
-            30
-        ),
-        UDim2.fromOffset(
-            10,
+    --------------------------------------------------
+    -- SIDEBAR TITLE
+    --------------------------------------------------
+
+    local scannerTitle =
+        self:Label(
+            sidebar,
+            "SCANNERS",
+            UDim2.new(
+                1,
+                -28,
+                0,
+                24
+            ),
+            UDim2.fromOffset(
+                14,
+                16
+            ),
             10
-        ),
-        10
-    ).TextColor3 =
-        Color3.fromRGB(
-            130,
-            130,
-            130
         )
+
+    scannerTitle.Font =
+        Enum.Font.GothamBold
+
+    scannerTitle.TextColor3 =
+        Colors.TextMuted
+
+    --------------------------------------------------
+    -- TAB BUTTONS
+    --------------------------------------------------
 
     local loop =
         self:Button(
@@ -503,13 +1230,13 @@ function ScannerCore:CreateGui()
             "LOOP",
             UDim2.new(
                 1,
-                -16,
+                -20,
                 0,
-                42
+                46
             ),
             UDim2.fromOffset(
-                8,
-                48
+                10,
+                51
             )
         )
 
@@ -519,13 +1246,13 @@ function ScannerCore:CreateGui()
             "JUMP",
             UDim2.new(
                 1,
-                -16,
+                -20,
                 0,
-                42
+                46
             ),
             UDim2.fromOffset(
-                8,
-                96
+                10,
+                105
             )
         )
 
@@ -535,36 +1262,153 @@ function ScannerCore:CreateGui()
             "MISC",
             UDim2.new(
                 1,
-                -16,
+                -20,
                 0,
-                42
+                46
             ),
             UDim2.fromOffset(
-                8,
-                144
+                10,
+                159
             )
         )
 
-    loop.Activated:Connect(function()
+    self.TabButtons = {
 
-        self.ActiveTab = "Loop"
-        self:RefreshGui()
+        Loop =
+            loop,
 
-    end)
+        Jump =
+            jump,
 
-    jump.Activated:Connect(function()
+        Misc =
+            misc,
+    }
 
-        self.ActiveTab = "Jump"
-        self:RefreshGui()
+    loop.Activated:Connect(
+        function()
 
-    end)
+            self.ActiveTab =
+                "Loop"
 
-    misc.Activated:Connect(function()
+            self:UpdateTabs()
+            self:RefreshGui()
 
-        self.ActiveTab = "Misc"
-        self:RefreshGui()
+        end
+    )
 
-    end)
+    jump.Activated:Connect(
+        function()
+
+            self.ActiveTab =
+                "Jump"
+
+            self:UpdateTabs()
+            self:RefreshGui()
+
+        end
+    )
+
+    misc.Activated:Connect(
+        function()
+
+            self.ActiveTab =
+                "Misc"
+
+            self:UpdateTabs()
+            self:RefreshGui()
+
+        end
+    )
+
+    --------------------------------------------------
+    -- SIDEBAR FOOTER
+    --------------------------------------------------
+
+    local footer =
+        Instance.new("Frame")
+
+    footer.Size =
+        UDim2.new(
+            1,
+            -28,
+            0,
+            66
+        )
+
+    footer.Position =
+        UDim2.new(
+            0,
+            14,
+            1,
+            -80
+        )
+
+    footer.BackgroundColor3 =
+        Colors.Panel
+
+    footer.BorderSizePixel =
+        0
+
+    self:Corner(
+        footer,
+        9
+    )
+
+    self:Stroke(
+        footer,
+        Colors.Border,
+        0.3,
+        1
+    )
+
+    footer.Parent =
+        sidebar
+
+    local scanLabel =
+        self:Label(
+            footer,
+            "SCANNER STATUS",
+            UDim2.new(
+                1,
+                -16,
+                0,
+                18
+            ),
+            UDim2.fromOffset(
+                8,
+                7
+            ),
+            8
+        )
+
+    scanLabel.Font =
+        Enum.Font.GothamBold
+
+    scanLabel.TextColor3 =
+        Colors.TextMuted
+
+    local activeLabel =
+        self:Label(
+            footer,
+            "ACTIVE",
+            UDim2.new(
+                1,
+                -16,
+                0,
+                22
+            ),
+            UDim2.fromOffset(
+                8,
+                28
+            ),
+            11
+        )
+
+    activeLabel.Font =
+        Enum.Font.GothamBold
+
+    activeLabel.TextColor3 =
+        Colors.Accent
 
     --------------------------------------------------
     -- CONTENT
@@ -573,26 +1417,36 @@ function ScannerCore:CreateGui()
     local content =
         Instance.new("Frame")
 
+    content.Name =
+        "Content"
+
     content.Size =
         UDim2.new(
             1,
-            -115,
+            -145,
             1,
-            -50
+            -58
         )
 
     content.Position =
         UDim2.fromOffset(
-            115,
-            50
+            145,
+            58
         )
 
-    content.BackgroundTransparency = 1
+    content.BackgroundColor3 =
+        Colors.Background
 
-    content.Parent = main
+    content.BorderSizePixel =
+        0
 
-    self.Content = content
+    content.Parent =
+        main
 
+    self.Content =
+        content
+
+    self:UpdateTabs()
     self:UpdateScale()
     self:RefreshGui()
 
@@ -602,7 +1456,7 @@ function ScannerCore:CreateGui()
 end
 
 --------------------------------------------------
--- DETECTION LIST
+-- DETECTION ROW
 --------------------------------------------------
 
 function ScannerCore:AddDetection(
@@ -616,51 +1470,74 @@ function ScannerCore:AddDetection(
     row.Size =
         UDim2.new(
             1,
-            -10,
+            -4,
             0,
-            50
+            62
         )
 
     row.BackgroundColor3 =
-        Color3.fromRGB(
-            28,
-            28,
-            28
+        Colors.Panel
+
+    row.BorderSizePixel =
+        0
+
+    self:Corner(
+        row,
+        9
+    )
+
+    self:Stroke(
+        row,
+        Colors.Border,
+        0.3,
+        1
+    )
+
+    row.Parent =
+        list
+
+    --------------------------------------------------
+    -- STATUS STRIPE
+    --------------------------------------------------
+
+    local stripe =
+        Instance.new("Frame")
+
+    stripe.Size =
+        UDim2.new(
+            0,
+            3,
+            1,
+            -18
         )
 
-    row.BorderSizePixel = 0
+    stripe.Position =
+        UDim2.fromOffset(
+            8,
+            9
+        )
 
-    row.Parent = list
+    stripe.BackgroundColor3 =
+        Colors.Danger
+
+    stripe.BorderSizePixel =
+        0
+
+    self:Corner(
+        stripe,
+        4
+    )
+
+    stripe.Parent =
+        row
+
+    --------------------------------------------------
+    -- PLAYER
+    --------------------------------------------------
 
     local name =
         entry.PlayerName or
         "Unknown"
-
-    local detail
-
-    if entry.Type == "Speed" then
-
-        detail =
-            string.format(
-                "%.2f studs/s | limit %.2f",
-                entry.Speed or 0,
-                entry.Limit or 0
-            )
-
-    elseif entry.Type == "Jump" then
-
-        detail =
-            string.format(
-                "%.2f studs | max %.2f",
-                entry.Height or 0,
-                entry.MaxHeight or 0
-            )
-
-    else
-
-        detail =
-            "Detection"
-    end
 
     local nameLabel =
         self:Label(
@@ -668,40 +1545,208 @@ function ScannerCore:AddDetection(
             name,
             UDim2.new(
                 1,
-                -16,
+                -125,
                 0,
-                23
+                22
             ),
             UDim2.fromOffset(
-                8,
-                2
+                22,
+                7
             ),
             12
         )
 
     nameLabel.Font =
-        Enum.Font.GothamMedium
+        Enum.Font.GothamBold
 
-    self:Label(
-        row,
-        detail,
-        UDim2.new(
-            1,
-            -16,
-            0,
-            20
-        ),
-        UDim2.fromOffset(
-            8,
-            26
-        ),
-        10
-    ).TextColor3 =
-        Color3.fromRGB(
-            145,
-            145,
-            145
+    --------------------------------------------------
+    -- TYPE
+    --------------------------------------------------
+
+    local typeText =
+        entry.Type or
+        "Detection"
+
+    local typeLabel =
+        self:Label(
+            row,
+            string.upper(
+                typeText
+            ),
+            UDim2.fromOffset(
+                78,
+                20
+            ),
+            UDim2.new(
+                1,
+                -88,
+                0,
+                7
+            ),
+            8
         )
+
+    typeLabel.TextXAlignment =
+        Enum.TextXAlignment.Right
+
+    typeLabel.Font =
+        Enum.Font.GothamBold
+
+    typeLabel.TextColor3 =
+        Colors.Danger
+
+    --------------------------------------------------
+    -- DETAILS
+    --------------------------------------------------
+
+    local detail
+
+    if entry.Type ==
+        "Speed" then
+
+        detail =
+            string.format(
+                "%.2f studs/s   •   limit %.2f",
+                entry.Speed or 0,
+                entry.Limit or 0
+            )
+
+        if entry.Sprinting then
+
+            detail =
+                detail ..
+                "   •   SPRINT"
+
+        end
+
+    elseif entry.Type ==
+        "Jump" then
+
+        detail =
+            string.format(
+                "%.2f studs   •   max %.2f",
+                entry.Height or 0,
+                entry.MaxHeight or 0
+            )
+
+        if entry.PeakUpwardVelocity then
+
+            detail =
+                detail ..
+                string.format(
+                    "   •   peak %.2f",
+                    entry.PeakUpwardVelocity
+                )
+
+        end
+
+    else
+
+        detail =
+            "Detection"
+
+    end
+
+    local detailLabel =
+        self:Label(
+            row,
+            detail,
+            UDim2.new(
+                1,
+                -30,
+                0,
+                20
+            ),
+            UDim2.fromOffset(
+                22,
+                31
+            ),
+            9
+        )
+
+    detailLabel.TextColor3 =
+        Colors.TextSecondary
+end
+
+--------------------------------------------------
+-- STATISTICS
+--------------------------------------------------
+
+function ScannerCore:GetDetectionCount(
+    detectionType
+)
+
+    local count =
+        0
+
+    for _, entry in ipairs(
+        self.Logs:GetEntries()
+    ) do
+
+        if entry.Type ==
+            detectionType then
+
+            count += 1
+
+        end
+    end
+
+    return count
+end
+
+--------------------------------------------------
+-- TAB HEADER
+--------------------------------------------------
+
+function ScannerCore:BuildHeader(
+    titleText,
+    statusText
+)
+
+    local content =
+        self.Content
+
+    local title =
+        self:Label(
+            content,
+            titleText,
+            UDim2.new(
+                1,
+                -28,
+                0,
+                30
+            ),
+            UDim2.fromOffset(
+                18,
+                17
+            ),
+            18
+        )
+
+    title.Font =
+        Enum.Font.GothamBold
+
+    local status =
+        self:Label(
+            content,
+            statusText,
+            UDim2.new(
+                1,
+                -28,
+                0,
+                20
+            ),
+            UDim2.fromOffset(
+                19,
+                43
+            ),
+            9
+        )
+
+    status.TextColor3 =
+        Colors.Accent
+
+    return content
 end
 
 --------------------------------------------------
@@ -713,77 +1758,132 @@ function ScannerCore:BuildLoop()
     local content =
         self.Content
 
-    self:Label(
-        content,
+    self:BuildHeader(
         "LOOP DETECTION",
-        UDim2.new(
-            1,
-            -20,
-            0,
-            30
-        ),
-        UDim2.fromOffset(
-            12,
-            12
-        ),
-        17
-    ).Font =
-        Enum.Font.GothamBold
+        "● ACTIVE   Movement monitoring enabled"
+    )
 
-    self:Label(
-        content,
-        string.format(
-            "● ACTIVE   Normal %.1f   Sprint %.1f",
-            self.Config.BaseSpeed,
-            self.Config.SprintSpeed
-        ),
+    --------------------------------------------------
+    -- STAT CARDS
+    --------------------------------------------------
+
+    local stats =
+        Instance.new("Frame")
+
+    stats.Size =
         UDim2.new(
             1,
-            -20,
+            -36,
             0,
-            25
-        ),
-        UDim2.fromOffset(
-            12,
-            43
-        ),
-        10
-    ).TextColor3 =
-        Color3.fromRGB(
-            80,
-            220,
-            120
+            62
         )
 
+    stats.Position =
+        UDim2.fromOffset(
+            18,
+            78
+        )
+
+    stats.BackgroundTransparency =
+        1
+
+    stats.Parent =
+        content
+
+    self:CreateStatCard(
+        stats,
+        "NORMAL",
+        string.format(
+            "%.1f",
+            self.Config.BaseSpeed
+        ),
+        0
+    )
+
+    self:CreateStatCard(
+        stats,
+        "SPRINT",
+        string.format(
+            "%.1f",
+            self.Config.SprintSpeed
+        ),
+        0.345
+    )
+
+    self:CreateStatCard(
+        stats,
+        "DETECTIONS",
+        tostring(
+            self:GetDetectionCount(
+                "Speed"
+            )
+        ),
+        0.69
+    )
+
+    --------------------------------------------------
+    -- LOG PANEL
+    --------------------------------------------------
+
     local list =
-        Instance.new("ScrollingFrame")
+        Instance.new(
+            "ScrollingFrame"
+        )
 
     list.Position =
         UDim2.fromOffset(
-            12,
-            78
+            18,
+            154
         )
 
     list.Size =
         UDim2.new(
             1,
-            -24,
+            -36,
             1,
-            -90
+            -172
         )
 
     list.BackgroundColor3 =
-        Color3.fromRGB(
-            20,
-            20,
-            20
+        Colors.Panel
+
+    list.BorderSizePixel =
+        0
+
+    list.ScrollBarThickness =
+        3
+
+    list.ScrollBarImageColor3 =
+        Colors.Accent
+
+    list.AutomaticCanvasSize =
+        Enum.AutomaticSize.Y
+
+    list.CanvasSize =
+        UDim2.fromScale(
+            0,
+            0
         )
 
-    list.BorderSizePixel = 0
+    self:Corner(
+        list,
+        11
+    )
 
-    list.ScrollBarThickness = 4
+    self:Stroke(
+        list,
+        Colors.Border,
+        0.25,
+        1
+    )
 
-    list.Parent = content
+    self:Padding(
+        list,
+        7
+    )
+
+    list.Parent =
+        content
 
     local layout =
         Instance.new("UIListLayout")
@@ -791,53 +1891,64 @@ function ScannerCore:BuildLoop()
     layout.Padding =
         UDim.new(
             0,
-            5
+            6
         )
 
-    layout.Parent = list
+    layout.SortOrder =
+        Enum.SortOrder.LayoutOrder
 
-    local entries = {}
+    layout.Parent =
+        list
+
+    local entries =
+        {}
 
     for _, entry in ipairs(
         self.Logs:GetEntries()
     ) do
 
-        if entry.Type == "Speed" then
+        if entry.Type ==
+            "Speed" then
 
             table.insert(
                 entries,
                 entry
             )
-
         end
     end
 
     if #entries == 0 then
 
-        self:Label(
-            list,
-            "No loop detections.",
-            UDim2.new(
-                1,
-                -10,
-                0,
-                35
-            ),
-            UDim2.fromOffset(
-                5,
-                5
-            ),
-            11
-        ).TextColor3 =
-            Color3.fromRGB(
-                125,
-                125,
-                125
+        local empty =
+            self:Label(
+                list,
+                "No loop detections.",
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    40
+                ),
+                UDim2.fromOffset(
+                    0,
+                    0
+                ),
+                10
             )
+
+        empty.TextColor3 =
+            Colors.TextMuted
+
+        empty.TextXAlignment =
+            Enum.TextXAlignment.Center
 
     else
 
-        for i = #entries, 1, -1 do
+        for i =
+            #entries,
+            1,
+            -1
+        do
 
             self:AddDetection(
                 list,
@@ -845,17 +1956,8 @@ function ScannerCore:BuildLoop()
             )
 
         end
+
     end
-
-    task.defer(function()
-
-        list.CanvasSize =
-            UDim2.fromOffset(
-                0,
-                layout.AbsoluteContentSize.Y + 10
-            )
-
-    end)
 end
 
 --------------------------------------------------
@@ -867,73 +1969,126 @@ function ScannerCore:BuildJump()
     local content =
         self.Content
 
-    self:Label(
-        content,
+    self:BuildHeader(
         "JUMP DETECTION",
-        UDim2.new(
-            1,
-            -20,
-            0,
-            30
-        ),
-        UDim2.fromOffset(
-            12,
-            12
-        ),
-        17
-    ).Font =
-        Enum.Font.GothamBold
+        "● ACTIVE   Jump behavior monitoring enabled"
+    )
 
-    self:Label(
-        content,
-        "● ACTIVE   Monitoring jump behavior",
+    --------------------------------------------------
+    -- STAT CARDS
+    --------------------------------------------------
+
+    local stats =
+        Instance.new("Frame")
+
+    stats.Size =
         UDim2.new(
             1,
-            -20,
+            -36,
             0,
-            25
-        ),
-        UDim2.fromOffset(
-            12,
-            43
-        ),
-        10
-    ).TextColor3 =
-        Color3.fromRGB(
-            80,
-            220,
-            120
+            62
         )
 
+    stats.Position =
+        UDim2.fromOffset(
+            18,
+            78
+        )
+
+    stats.BackgroundTransparency =
+        1
+
+    stats.Parent =
+        content
+
+    self:CreateStatCard(
+        stats,
+        "JUMP POWER",
+        "53.5",
+        0
+    )
+
+    self:CreateStatCard(
+        stats,
+        "PEAK VELOCITY",
+        "51.865",
+        0.345
+    )
+
+    self:CreateStatCard(
+        stats,
+        "DETECTIONS",
+        tostring(
+            self:GetDetectionCount(
+                "Jump"
+            )
+        ),
+        0.69
+    )
+
+    --------------------------------------------------
+    -- LOG PANEL
+    --------------------------------------------------
+
     local list =
-        Instance.new("ScrollingFrame")
+        Instance.new(
+            "ScrollingFrame"
+        )
 
     list.Position =
         UDim2.fromOffset(
-            12,
-            78
+            18,
+            154
         )
 
     list.Size =
         UDim2.new(
             1,
-            -24,
+            -36,
             1,
-            -90
+            -172
         )
 
     list.BackgroundColor3 =
-        Color3.fromRGB(
-            20,
-            20,
-            20
+        Colors.Panel
+
+    list.BorderSizePixel =
+        0
+
+    list.ScrollBarThickness =
+        3
+
+    list.ScrollBarImageColor3 =
+        Colors.Accent
+
+    list.AutomaticCanvasSize =
+        Enum.AutomaticSize.Y
+
+    list.CanvasSize =
+        UDim2.fromScale(
+            0,
+            0
         )
 
-    list.BorderSizePixel = 0
+    self:Corner(
+        list,
+        11
+    )
 
-    list.ScrollBarThickness = 4
+    self:Stroke(
+        list,
+        Colors.Border,
+        0.25,
+        1
+    )
 
-    list.Parent = content
+    self:Padding(
+        list,
+        7
+    )
+
+    list.Parent =
+        content
 
     local layout =
         Instance.new("UIListLayout")
@@ -941,53 +2096,64 @@ function ScannerCore:BuildJump()
     layout.Padding =
         UDim.new(
             0,
-            5
+            6
         )
 
-    layout.Parent = list
+    layout.SortOrder =
+        Enum.SortOrder.LayoutOrder
 
-    local entries = {}
+    layout.Parent =
+        list
+
+    local entries =
+        {}
 
     for _, entry in ipairs(
         self.Logs:GetEntries()
     ) do
 
-        if entry.Type == "Jump" then
+        if entry.Type ==
+            "Jump" then
 
             table.insert(
                 entries,
                 entry
             )
-
         end
     end
 
     if #entries == 0 then
 
-        self:Label(
-            list,
-            "No jump detections.",
-            UDim2.new(
-                1,
-                -10,
-                0,
-                35
-            ),
-            UDim2.fromOffset(
-                5,
-                5
-            ),
-            11
-        ).TextColor3 =
-            Color3.fromRGB(
-                125,
-                125,
-                125
+        local empty =
+            self:Label(
+                list,
+                "No jump detections.",
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    40
+                ),
+                UDim2.fromOffset(
+                    0,
+                    0
+                ),
+                10
             )
+
+        empty.TextColor3 =
+            Colors.TextMuted
+
+        empty.TextXAlignment =
+            Enum.TextXAlignment.Center
 
     else
 
-        for i = #entries, 1, -1 do
+        for i =
+            #entries,
+            1,
+            -1
+        do
 
             self:AddDetection(
                 list,
@@ -996,16 +2162,6 @@ function ScannerCore:BuildJump()
 
         end
     end
-
-    task.defer(function()
-
-        list.CanvasSize =
-            UDim2.fromOffset(
-                0,
-                layout.AbsoluteContentSize.Y + 10
-            )
-
-    end)
 end
 
 --------------------------------------------------
@@ -1017,169 +2173,313 @@ function ScannerCore:BuildMisc()
     local content =
         self.Content
 
-    self:Label(
-        content,
+    self:BuildHeader(
         "MISC",
-        UDim2.new(
-            1,
-            -20,
-            0,
-            30
-        ),
-        UDim2.fromOffset(
-            12,
-            12
-        ),
-        17
-    ).Font =
-        Enum.Font.GothamBold
+        "● Interface and display settings"
+    )
 
-    self:Label(
-        content,
-        "GUI SIZE",
+    --------------------------------------------------
+    -- SIZE PANEL
+    --------------------------------------------------
+
+    local sizePanel =
+        Instance.new("Frame")
+
+    sizePanel.Size =
         UDim2.new(
             1,
-            -20,
+            -36,
             0,
-            25
-        ),
+            144
+        )
+
+    sizePanel.Position =
         UDim2.fromOffset(
-            12,
-            50
-        ),
+            18,
+            78
+        )
+
+    sizePanel.BackgroundColor3 =
+        Colors.Panel
+
+    sizePanel.BorderSizePixel =
+        0
+
+    self:Corner(
+        sizePanel,
         11
-    ).Font =
-        Enum.Font.GothamMedium
+    )
 
-    local small =
-        self:Button(
-            content,
-            "SMALL",
-            UDim2.fromOffset(
-                95,
-                40
+    self:Stroke(
+        sizePanel,
+        Colors.Border,
+        0.25,
+        1
+    )
+
+    sizePanel.Parent =
+        content
+
+    local sizeTitle =
+        self:Label(
+            sizePanel,
+            "GUI SIZE",
+            UDim2.new(
+                1,
+                -24,
+                0,
+                24
             ),
             UDim2.fromOffset(
                 12,
-                82
+                10
+            ),
+            11
+        )
+
+    sizeTitle.Font =
+        Enum.Font.GothamBold
+
+    sizeTitle.TextColor3 =
+        Colors.Text
+
+    --------------------------------------------------
+    -- SIZE BUTTONS
+    --------------------------------------------------
+
+    local small =
+        self:Button(
+            sizePanel,
+            "SMALL",
+            UDim2.new(
+                0.29,
+                0,
+                0,
+                42
+            ),
+            UDim2.new(
+                0,
+                12,
+                0,
+                49
             )
         )
 
     local medium =
         self:Button(
-            content,
+            sizePanel,
             "MEDIUM",
-            UDim2.fromOffset(
-                95,
-                40
+            UDim2.new(
+                0.29,
+                0,
+                0,
+                42
             ),
-            UDim2.fromOffset(
-                115,
-                82
+            UDim2.new(
+                0.355,
+                0,
+                0,
+                49
             )
         )
 
     local large =
         self:Button(
-            content,
+            sizePanel,
             "LARGE",
-            UDim2.fromOffset(
-                95,
-                40
+            UDim2.new(
+                0.29,
+                0,
+                0,
+                42
             ),
-            UDim2.fromOffset(
-                218,
-                82
+            UDim2.new(
+                0.71,
+                0,
+                0,
+                49
             )
         )
 
-    small.Activated:Connect(function()
+    small.Activated:Connect(
+        function()
 
-        self.GuiSizeMode = "Small"
+            self.GuiSizeMode =
+                "Small"
 
-        self:UpdateScale()
+            self:UpdateScale()
 
-    end)
+        end
+    )
 
-    medium.Activated:Connect(function()
+    medium.Activated:Connect(
+        function()
 
-        self.GuiSizeMode = "Medium"
+            self.GuiSizeMode =
+                "Medium"
 
-        self:UpdateScale()
+            self:UpdateScale()
 
-    end)
+        end
+    )
 
-    large.Activated:Connect(function()
+    large.Activated:Connect(
+        function()
 
-        self.GuiSizeMode = "Large"
+            self.GuiSizeMode =
+                "Large"
 
-        self:UpdateScale()
+            self:UpdateScale()
 
-    end)
+        end
+    )
 
-    self:Label(
-        content,
-        "Current size: " ..
-            self.GuiSizeMode,
+    --------------------------------------------------
+    -- CURRENT SIZE
+    --------------------------------------------------
+
+    local current =
+        self:Label(
+            sizePanel,
+            "Current size: " ..
+                self.GuiSizeMode,
+            UDim2.new(
+                1,
+                -24,
+                0,
+                20
+            ),
+            UDim2.fromOffset(
+                12,
+                101
+            ),
+            9
+        )
+
+    current.TextColor3 =
+        Colors.Accent
+
+    --------------------------------------------------
+    -- INFORMATION
+    --------------------------------------------------
+
+    local infoPanel =
+        Instance.new("Frame")
+
+    infoPanel.Size =
         UDim2.new(
             1,
-            -20,
+            -36,
             0,
-            30
-        ),
+            122
+        )
+
+    infoPanel.Position =
         UDim2.fromOffset(
-            12,
-            140
-        ),
+            18,
+            236
+        )
+
+    infoPanel.BackgroundColor3 =
+        Colors.Panel
+
+    infoPanel.BorderSizePixel =
+        0
+
+    self:Corner(
+        infoPanel,
         11
-    ).TextColor3 =
-        Color3.fromRGB(
-            80,
-            220,
-            120
+    )
+
+    self:Stroke(
+        infoPanel,
+        Colors.Border,
+        0.25,
+        1
+    )
+
+    infoPanel.Parent =
+        content
+
+    local infoTitle =
+        self:Label(
+            infoPanel,
+            "INTERFACE",
+            UDim2.new(
+                1,
+                -24,
+                0,
+                20
+            ),
+            UDim2.fromOffset(
+                12,
+                10
+            ),
+            10
         )
 
-    self:Label(
-        content,
-        "The GUI automatically scales to fit your phone.",
-        UDim2.new(
-            1,
-            -20,
-            0,
-            40
-        ),
-        UDim2.fromOffset(
-            12,
-            190
-        ),
-        10
-    ).TextColor3 =
-        Color3.fromRGB(
-            130,
-            130,
-            130
+    infoTitle.Font =
+        Enum.Font.GothamBold
+
+    local info1 =
+        self:Label(
+            infoPanel,
+            "The GUI automatically scales to fit your screen.",
+            UDim2.new(
+                1,
+                -24,
+                0,
+                22
+            ),
+            UDim2.fromOffset(
+                12,
+                37
+            ),
+            9
         )
 
-    self:Label(
-        content,
-        "Drag the top bar to move it.",
-        UDim2.new(
-            1,
-            -20,
-            0,
-            40
-        ),
-        UDim2.fromOffset(
-            12,
-            225
-        ),
-        10
-    ).TextColor3 =
-        Color3.fromRGB(
-            130,
-            130,
-            130
+    info1.TextColor3 =
+        Colors.TextSecondary
+
+    local info2 =
+        self:Label(
+            infoPanel,
+            "Drag the top bar to move it.",
+            UDim2.new(
+                1,
+                -24,
+                0,
+                22
+            ),
+            UDim2.fromOffset(
+                12,
+                61
+            ),
+            9
         )
+
+    info2.TextColor3 =
+        Colors.TextSecondary
+
+    local info3 =
+        self:Label(
+            infoPanel,
+            "Scanner data is displayed locally to the client.",
+            UDim2.new(
+                1,
+                -24,
+                0,
+                22
+            ),
+            UDim2.fromOffset(
+                12,
+                85
+            ),
+            9
+        )
+
+    info3.TextColor3 =
+        Colors.TextMuted
 end
 
 --------------------------------------------------
@@ -1192,27 +2492,34 @@ function ScannerCore:RefreshGui()
         return
     end
 
-    for _, child in ipairs(
-        self.Content:GetChildren()
-    ) do
+    for _, child in
+        ipairs(
+            self.Content:GetChildren()
+        )
+    do
 
         child:Destroy()
 
     end
 
-    if self.ActiveTab == "Loop" then
+    if self.ActiveTab ==
+        "Loop" then
 
         self:BuildLoop()
 
-    elseif self.ActiveTab == "Jump" then
+    elseif self.ActiveTab ==
+        "Jump" then
 
         self:BuildJump()
 
-    elseif self.ActiveTab == "Misc" then
+    elseif self.ActiveTab ==
+        "Misc" then
 
         self:BuildMisc()
 
     end
+
+    self:UpdateTabs()
 end
 
 --------------------------------------------------
@@ -1234,18 +2541,27 @@ function ScannerCore:Start()
         return
     end
 
-    self.Started = true
+    self.Started =
+        true
 
-    -- These scan EVERY replicated player.
+    --------------------------------------------------
+    -- SCANNERS
+    --------------------------------------------------
+
     self.LoopScanner:Start()
     self.JumpScanner:Start()
 
-    -- GUI belongs ONLY to the local player.
-    task.defer(function()
+    --------------------------------------------------
+    -- LOCAL GUI
+    --------------------------------------------------
 
-        self:CreateGui()
+    task.defer(
+        function()
 
-    end)
+            self:CreateGui()
+
+        end
+    )
 
     print(
         "[AC-Checker] Scanner started."
@@ -1262,7 +2578,8 @@ function ScannerCore:Stop()
         return
     end
 
-    self.Started = false
+    self.Started =
+        false
 
     self.LoopScanner:Stop()
     self.JumpScanner:Stop()
@@ -1270,13 +2587,24 @@ function ScannerCore:Stop()
     if self.Gui then
 
         self.Gui:Destroy()
-        self.Gui = nil
+
+        self.Gui =
+            nil
 
     end
 
-    self.Main = nil
-    self.Content = nil
-    self.Scale = nil
+    self.Main =
+        nil
+
+    self.Content =
+        nil
+
+    self.Scale =
+        nil
+
+    table.clear(
+        self.TabButtons
+    )
 
     print(
         "[AC-Checker] Scanner stopped."
