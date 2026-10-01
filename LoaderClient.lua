@@ -3,356 +3,165 @@
     LoaderClient.lua
 
     GitHub bootstrap loader.
-
-    This is the ONLY file you execute directly.
-
-    It downloads the existing modules from:
-
-    https://github.com/unaffiliateds/AC-Checker
-
-    and loads:
-
-        src/Logs.lua
-        src/LoopScanner.lua
-        src/JumpScanner.lua
-        src/ScannerCore.lua
-
-    Nothing else is added.
 ]]
 
---------------------------------------------------
--- CONFIG
---------------------------------------------------
-
 local BASE_URL =
-	"https://raw.githubusercontent.com/unaffiliateds/AC-Checker/main/"
+    "https://raw.githubusercontent.com/unaffiliateds/AC-Checker/main/"
 
 local CONFIG = {
+    Enabled = true,
 
-	Enabled = true,
+    BaseSpeed = 18,
+    SprintSpeed = 21,
 
-	-- Normal movement limit.
-	BaseSpeed = 18,
+    SpeedTolerance = 1.25,
 
-	-- Sprint movement limit.
-	SprintSpeed = 21,
+    SampleInterval = 0.15,
 
-	-- Small allowance for normal physics/network variance.
-	SpeedTolerance = 1.25,
+    RequiredViolations = 3,
+    ViolationWindow = 1,
 
-	-- Movement sampling interval.
-	SampleInterval = 0.15,
+    ShowGuiToAll = true,
 
-	-- Consecutive violations required.
-	RequiredViolations = 3,
-
-	-- Maximum time between violations in a streak.
-	ViolationWindow = 1,
-
-	-- Development mode.
-	--
-	-- true = GUI is visible to the local player.
-	-- Later this can be changed to an admin-only setup.
-	ShowGuiToAll = true,
-
-	AdminUserIds = {
-		-- Your UserId goes here later.
-	},
+    AdminUserIds = {},
 }
 
-
---------------------------------------------------
--- ERROR HANDLING
---------------------------------------------------
-
 local function fail(message)
-
-	error(
-		"[AC-Checker] " .. message,
-		2
-	)
-
+    error("[AC-Checker] " .. message, 2)
 end
-
-
---------------------------------------------------
--- DOWNLOAD SOURCE
---------------------------------------------------
 
 local function download(path)
+    local url = BASE_URL .. path
 
-	local url =
-		BASE_URL .. path
+    if type(game.HttpGet) ~= "function" then
+        fail("game:HttpGet is unavailable in this environment.")
+    end
 
-	if type(game.HttpGet) ~= "function" then
+    local success, result = pcall(function()
+        return game:HttpGet(url)
+    end)
 
-		fail(
-			"game:HttpGet is unavailable. " ..
-			"This loader requires a client environment " ..
-			"that can retrieve the GitHub source."
-		)
+    if not success then
+        fail(
+            "Failed to download " ..
+            path ..
+            "\n" ..
+            tostring(result)
+        )
+    end
 
-	end
+    if type(result) ~= "string" or #result == 0 then
+        fail("GitHub returned empty source for " .. path)
+    end
 
-	local success, result =
-		pcall(
-			function()
-
-				return game:HttpGet(
-					url
-				)
-
-			end
-		)
-
-	if not success then
-
-		fail(
-			"Failed to download " ..
-			path ..
-			".\n" ..
-			tostring(result)
-		)
-
-	end
-
-	if type(result) ~= "string"
-		or #result == 0 then
-
-		fail(
-			"GitHub returned empty source for " ..
-			path
-		)
-
-	end
-
-	return result
-
+    return result
 end
-
-
---------------------------------------------------
--- COMPILE + LOAD SOURCE
---------------------------------------------------
 
 local function loadModule(path)
+    local source = download(path)
 
-	local source =
-		download(path)
+    if type(loadstring) ~= "function" then
+        fail("loadstring is unavailable.")
+    end
 
-	if type(loadstring) ~= "function" then
+    local chunk, compileError =
+        loadstring(
+            source,
+            "@AC-Checker/" .. path
+        )
 
-		fail(
-			"loadstring is unavailable. " ..
-			"The downloaded GitHub modules cannot be compiled."
-		)
+    if not chunk then
+        fail(
+            "Failed to compile " ..
+            path ..
+            "\n" ..
+            tostring(compileError)
+        )
+    end
 
-	end
+    local success, result =
+        pcall(chunk)
 
-	local chunk, compileError =
-		loadstring(
-			source,
-			"@AC-Checker/" .. path
-		)
+    if not success then
+        fail(
+            "Module failed while loading: " ..
+            path ..
+            "\n" ..
+            tostring(result)
+        )
+    end
 
-	if not chunk then
+    if result == nil then
+        fail(
+            "Module did not return a value: " ..
+            path
+        )
+    end
 
-		fail(
-			"Failed to compile " ..
-			path ..
-			".\n" ..
-			tostring(compileError)
-		)
-
-	end
-
-	local success, result =
-		pcall(chunk)
-
-	if not success then
-
-		fail(
-			"Module failed while loading: " ..
-			path ..
-			".\n" ..
-			tostring(result)
-		)
-
-	end
-
-	if result == nil then
-
-		fail(
-			"Module did not return a value: " ..
-			path
-		)
-
-	end
-
-	return result
-
+    return result
 end
 
+print("[AC-Checker] Loading modules from GitHub...")
 
---------------------------------------------------
--- LOAD MODULES
---------------------------------------------------
-
-print(
-	"[AC-Checker] Downloading source from GitHub..."
-)
-
--- Independent module.
 local Logs =
-	loadModule(
-		"src/Logs.lua"
-	)
+    loadModule("src/Logs.lua")
 
--- Movement scanner.
 local LoopScanner =
-	loadModule(
-		"src/LoopScanner.lua"
-	)
+    loadModule("src/LoopScanner.lua")
 
--- Jump scanner placeholder.
 local JumpScanner =
-	loadModule(
-		"src/JumpScanner.lua"
-	)
+    loadModule("src/JumpScanner.lua")
 
--- Core depends on the three modules above,
--- so it is loaded last.
 local ScannerCore =
-	loadModule(
-		"src/ScannerCore.lua"
-	)
-
-
---------------------------------------------------
--- VALIDATE MODULES
---------------------------------------------------
+    loadModule("src/ScannerCore.lua")
 
 if type(Logs) ~= "table"
-	or type(Logs.new) ~= "function" then
+    or type(Logs.new) ~= "function" then
 
-	fail(
-		"Logs.lua loaded, but did not return a valid Logs module."
-	)
-
+    fail("Invalid Logs module.")
 end
 
 if type(LoopScanner) ~= "table"
-	or type(LoopScanner.new) ~= "function" then
+    or type(LoopScanner.new) ~= "function" then
 
-	fail(
-		"LoopScanner.lua loaded, but did not return a valid LoopScanner module."
-	)
-
+    fail("Invalid LoopScanner module.")
 end
 
 if type(JumpScanner) ~= "table"
-	or type(JumpScanner.new) ~= "function" then
+    or type(JumpScanner.new) ~= "function" then
 
-	fail(
-		"JumpScanner.lua loaded, but did not return a valid JumpScanner module."
-	)
-
+    fail("Invalid JumpScanner module.")
 end
 
 if type(ScannerCore) ~= "table"
-	or type(ScannerCore.new) ~= "function" then
+    or type(ScannerCore.new) ~= "function" then
 
-	fail(
-		"ScannerCore.lua loaded, but did not return a valid ScannerCore module."
-	)
-
+    fail("Invalid ScannerCore module.")
 end
-
-
---------------------------------------------------
--- WAIT FOR LOCAL PLAYER
---------------------------------------------------
 
 local Players =
-	game:GetService(
-		"Players"
-	)
+    game:GetService("Players")
 
 local LocalPlayer =
-	Players.LocalPlayer
+    Players.LocalPlayer
 
 if not LocalPlayer then
-
-	fail(
-		"LocalPlayer was not available."
-	)
-
+    fail("LocalPlayer was not available.")
 end
 
--- Make sure PlayerGui exists before ScannerCore
--- attempts to build the GUI.
-local PlayerGui =
-	LocalPlayer:WaitForChild(
-		"PlayerGui"
-	)
-
-
---------------------------------------------------
--- CREATE SCANNER
---------------------------------------------------
+LocalPlayer:WaitForChild("PlayerGui")
 
 local Scanner =
-	ScannerCore.new(
-		CONFIG,
-		{
-
-			Logs =
-				Logs,
-
-			LoopScanner =
-				LoopScanner,
-
-			JumpScanner =
-				JumpScanner,
-		}
-	)
-
-
---------------------------------------------------
--- START
---------------------------------------------------
+    ScannerCore.new(
+        CONFIG,
+        {
+            Logs = Logs,
+            LoopScanner = LoopScanner,
+            JumpScanner = JumpScanner,
+        }
+    )
 
 Scanner:Start()
 
-
---------------------------------------------------
--- STARTUP CONFIRMATION
---------------------------------------------------
-
-print(
-	"[AC-Checker] GitHub modules loaded successfully."
-)
-
-print(
-	"[AC-Checker] ScannerCore loaded."
-)
-
-print(
-	"[AC-Checker] LoopScanner loaded."
-)
-
-print(
-	"[AC-Checker] JumpScanner loaded."
-)
-
-print(
-	"[AC-Checker] Logs loaded."
-)
-
-print(
-	"[AC-Checker] PlayerGui found."
-)
-
-print(
-	"[AC-Checker] AC-Checker is running."
-)
+print("[AC-Checker] All modules loaded.")
+print("[AC-Checker] AC-Checker is running.")
