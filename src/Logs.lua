@@ -1,8 +1,3 @@
---[[
-    AC-Checker
-    Logs.lua
-]]
-
 local Logs = {}
 Logs.__index = Logs
 
