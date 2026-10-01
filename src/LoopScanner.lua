@@ -14,17 +14,16 @@ function LoopScanner.new(config)
     local self =
         setmetatable({}, LoopScanner)
 
-    -- Confirmed from the live game.
     self.BaseSpeed =
         config.BaseSpeed or 18
 
-    -- Confirmed from the live game while sprinting.
     self.SprintSpeed =
         config.SprintSpeed or 21
 
-    -- Small allowance for normal movement/physics variation.
+    -- Confirmed acceptable sprint spike range:
+    -- 21.00 through 21.15.
     self.Tolerance =
-        config.Tolerance or 1.25
+        config.Tolerance or 0.15
 
     self.SampleInterval =
         config.SampleInterval or 0.15
@@ -50,42 +49,47 @@ function LoopScanner.new(config)
     return self
 end
 
+--------------------------------------------------
+-- SPRINT DETECTION
+--------------------------------------------------
+
 function LoopScanner:IsSprinting(
     player,
     humanoid
 )
 
-    -- Check player attribute.
-    if player:GetAttribute(
-        "Sprinting"
-    ) == true then
-
-        return true
+    if not humanoid then
+        return false
     end
 
-    -- Check a Sprinting BoolValue under the player.
-    local sprintValue =
-        player:FindFirstChild(
-            "Sprinting"
-        )
+    local walkSpeed =
+        humanoid.WalkSpeed
 
-    if sprintValue
-        and sprintValue:IsA("BoolValue") then
+    -- Treat the confirmed sprint range as:
+    -- 20.85 -> 21.15
+    --
+    -- This lets tiny legitimate WalkSpeed
+    -- fluctuations around 21 count as sprint.
+    local sprintMinimum =
+        self.SprintSpeed -
+        self.Tolerance
 
-        return sprintValue.Value
-    end
+    local sprintMaximum =
+        self.SprintSpeed +
+        self.Tolerance
 
-    -- The actual game changes the live
-    -- Humanoid WalkSpeed from 18 to 21.
-    if humanoid
-        and humanoid.WalkSpeed >
-            self.BaseSpeed then
+    if walkSpeed >= sprintMinimum
+        and walkSpeed <= sprintMaximum then
 
         return true
     end
 
     return false
 end
+
+--------------------------------------------------
+-- ALLOWED SPEED
+--------------------------------------------------
 
 function LoopScanner:GetAllowedSpeed(
     player,
@@ -99,11 +103,18 @@ function LoopScanner:GetAllowedSpeed(
         )
 
     if sprinting then
+
+        -- Exact requested rule:
+        -- anything above 21.15 is suspicious.
         return self.SprintSpeed, true
     end
 
     return self.BaseSpeed, false
 end
+
+--------------------------------------------------
+-- RESET
+--------------------------------------------------
 
 function LoopScanner:ResetPlayer(
     player
@@ -115,6 +126,10 @@ function LoopScanner:ResetPlayer(
     self.ViolationCounts[player] = 0
     self.LastViolationTimes[player] = nil
 end
+
+--------------------------------------------------
+-- CHECK PLAYER
+--------------------------------------------------
 
 function LoopScanner:CheckPlayer(
     player,
@@ -155,7 +170,7 @@ function LoopScanner:CheckPlayer(
     local previousTime =
         self.LastTimes[player]
 
-    -- First sample for this player.
+    -- First sample.
     if not previousPosition
         or not previousTime then
 
@@ -169,14 +184,18 @@ function LoopScanner:CheckPlayer(
     end
 
     local deltaTime =
-        currentTime - previousTime
+        currentTime -
+        previousTime
 
-    -- Do not update the previous sample
-    -- until the sample interval has elapsed.
-    if deltaTime < self.SampleInterval then
+    if deltaTime <
+        self.SampleInterval then
+
         return
     end
 
+    -- IMPORTANT:
+    -- Only update the previous sample after
+    -- the sample interval has elapsed.
     self.LastPositions[player] =
         root.Position
 
@@ -187,7 +206,7 @@ function LoopScanner:CheckPlayer(
         root.Position -
         previousPosition
 
-    -- Only measure horizontal movement.
+    -- Horizontal movement only.
     local horizontal =
         Vector3.new(
             displacement.X,
@@ -199,7 +218,8 @@ function LoopScanner:CheckPlayer(
         horizontal.Magnitude
 
     local speed =
-        distance / deltaTime
+        distance /
+        deltaTime
 
     local limit, sprinting =
         self:GetAllowedSpeed(
@@ -208,66 +228,98 @@ function LoopScanner:CheckPlayer(
         )
 
     local allowedSpeed =
-        limit + self.Tolerance
+        limit +
+        self.Tolerance
 
-    -- Normal movement.
+    --------------------------------------------------
+    -- NORMAL MOVEMENT
+    --------------------------------------------------
+
     if speed <= allowedSpeed then
 
-        self.ViolationCounts[player] = 0
-        self.LastViolationTimes[player] = nil
+        self.ViolationCounts[player] =
+            0
+
+        self.LastViolationTimes[player] =
+            nil
 
         return
     end
 
+    --------------------------------------------------
+    -- VIOLATION WINDOW
+    --------------------------------------------------
+
     local lastViolation =
         self.LastViolationTimes[player]
 
-    -- Start a new violation window.
     if not lastViolation
         or currentTime - lastViolation >
             self.ViolationWindow then
 
-        self.ViolationCounts[player] = 1
+        self.ViolationCounts[player] =
+            1
 
     else
 
         self.ViolationCounts[player] =
-            (self.ViolationCounts[player] or 0) + 1
+            (self.ViolationCounts[player] or 0) +
+            1
+
     end
 
     self.LastViolationTimes[player] =
         currentTime
 
-    -- Require multiple suspicious samples
-    -- before reporting a detection.
+    --------------------------------------------------
+    -- REQUIRED VIOLATIONS
+    --------------------------------------------------
+
     if self.ViolationCounts[player] <
         self.RequiredViolations then
 
         return
     end
 
-    self.ViolationCounts[player] = 0
+    self.ViolationCounts[player] =
+        0
+
+    --------------------------------------------------
+    -- DETECTION
+    --------------------------------------------------
 
     if self.OnDetection then
 
         self.OnDetection({
 
-            Type = "Speed",
+            Type =
+                "Speed",
 
-            Player = player,
+            Player =
+                player,
 
-            Speed = speed,
+            Speed =
+                speed,
 
-            Limit = limit,
+            Limit =
+                limit,
 
-            AllowedSpeed = allowedSpeed,
+            AllowedSpeed =
+                allowedSpeed,
 
-            Sprinting = sprinting,
+            Sprinting =
+                sprinting,
 
-            Time = os.time(),
+            Time =
+                os.time(),
         })
+
     end
 end
+
+--------------------------------------------------
+-- START
+--------------------------------------------------
 
 function LoopScanner:Start()
 
@@ -275,7 +327,8 @@ function LoopScanner:Start()
         return
     end
 
-    self.Running = true
+    self.Running =
+        true
 
     self.Connection =
         RunService.Heartbeat:Connect(
@@ -296,6 +349,7 @@ function LoopScanner:Start()
                         player,
                         now
                     )
+
                 end
             end
         )
@@ -305,15 +359,21 @@ function LoopScanner:Start()
     )
 end
 
+--------------------------------------------------
+-- STOP
+--------------------------------------------------
+
 function LoopScanner:Stop()
 
-    self.Running = false
+    self.Running =
+        false
 
     if self.Connection then
 
         self.Connection:Disconnect()
-        self.Connection = nil
 
+        self.Connection =
+            nil
     end
 
     table.clear(
