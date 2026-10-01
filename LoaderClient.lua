@@ -1,10 +1,3 @@
---[[
-    AC-Checker
-    LoaderClient.lua
-
-    GitHub bootstrap loader.
-]]
-
 local BASE_URL =
     "https://raw.githubusercontent.com/unaffiliateds/AC-Checker/main/"
 
