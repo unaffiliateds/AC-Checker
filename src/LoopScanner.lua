@@ -1,13 +1,3 @@
---[[
-    AC-Checker
-    LoopScanner.lua
-
-    Detects abnormal horizontal movement.
-
-    Normal: 18 studs/sec
-    Sprint: 21 studs/sec
-]]
-
 local Players =
     game:GetService("Players")
 
