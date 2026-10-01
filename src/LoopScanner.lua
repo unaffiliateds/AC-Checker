@@ -14,12 +14,15 @@ function LoopScanner.new(config)
     local self =
         setmetatable({}, LoopScanner)
 
+    -- Confirmed from the live game.
     self.BaseSpeed =
         config.BaseSpeed or 18
 
+    -- Confirmed from the live game while sprinting.
     self.SprintSpeed =
         config.SprintSpeed or 21
 
+    -- Small allowance for normal movement/physics variation.
     self.Tolerance =
         config.Tolerance or 1.25
 
@@ -52,6 +55,7 @@ function LoopScanner:IsSprinting(
     humanoid
 )
 
+    -- Check player attribute.
     if player:GetAttribute(
         "Sprinting"
     ) == true then
@@ -59,6 +63,7 @@ function LoopScanner:IsSprinting(
         return true
     end
 
+    -- Check a Sprinting BoolValue under the player.
     local sprintValue =
         player:FindFirstChild(
             "Sprinting"
@@ -70,6 +75,8 @@ function LoopScanner:IsSprinting(
         return sprintValue.Value
     end
 
+    -- The actual game changes the live
+    -- Humanoid WalkSpeed from 18 to 21.
     if humanoid
         and humanoid.WalkSpeed >
             self.BaseSpeed then
@@ -148,6 +155,7 @@ function LoopScanner:CheckPlayer(
     local previousTime =
         self.LastTimes[player]
 
+    -- First sample for this player.
     if not previousPosition
         or not previousTime then
 
@@ -163,6 +171,8 @@ function LoopScanner:CheckPlayer(
     local deltaTime =
         currentTime - previousTime
 
+    -- Do not update the previous sample
+    -- until the sample interval has elapsed.
     if deltaTime < self.SampleInterval then
         return
     end
@@ -177,6 +187,7 @@ function LoopScanner:CheckPlayer(
         root.Position -
         previousPosition
 
+    -- Only measure horizontal movement.
     local horizontal =
         Vector3.new(
             displacement.X,
@@ -199,6 +210,7 @@ function LoopScanner:CheckPlayer(
     local allowedSpeed =
         limit + self.Tolerance
 
+    -- Normal movement.
     if speed <= allowedSpeed then
 
         self.ViolationCounts[player] = 0
@@ -210,6 +222,7 @@ function LoopScanner:CheckPlayer(
     local lastViolation =
         self.LastViolationTimes[player]
 
+    -- Start a new violation window.
     if not lastViolation
         or currentTime - lastViolation >
             self.ViolationWindow then
@@ -225,6 +238,8 @@ function LoopScanner:CheckPlayer(
     self.LastViolationTimes[player] =
         currentTime
 
+    -- Require multiple suspicious samples
+    -- before reporting a detection.
     if self.ViolationCounts[player] <
         self.RequiredViolations then
 
@@ -251,7 +266,6 @@ function LoopScanner:CheckPlayer(
 
             Time = os.time(),
         })
-
     end
 end
 
