@@ -2,688 +2,891 @@
     AC-Checker
     ScannerCore.lua
 
-    Central controller.
+    Main controller + GUI.
 
-    The Loader provides:
-        LoopScanner
-        JumpScanner
-        Logs
-
-    This module does not depend on a particular
-    Roblox folder hierarchy.
+    Tabs:
+        LOOP DETECTION
+        JUMP DETECTION
 ]]
 
 local Players =
-	game:GetService("Players")
+    game:GetService("Players")
+
+local LocalPlayer =
+    Players.LocalPlayer
 
 local ScannerCore = {}
 ScannerCore.__index = ScannerCore
 
 function ScannerCore.new(
-	config,
-	modules
+    config,
+    modules
 )
 
-	config = config or {}
-	modules = modules or {}
+    config = config or {}
+    modules = modules or {}
 
-	local self =
-		setmetatable(
-			{},
-			ScannerCore
-		)
+    local self =
+        setmetatable(
+            {},
+            ScannerCore
+        )
 
-	self.Config = {
+    self.Config = {
 
-		Enabled =
-			config.Enabled ~= false,
+        Enabled =
+            config.Enabled ~= false,
 
-		BaseSpeed =
-			config.BaseSpeed or 18,
+        BaseSpeed =
+            config.BaseSpeed or 18,
 
-		SprintSpeed =
-			config.SprintSpeed or 21,
+        SprintSpeed =
+            config.SprintSpeed or 21,
 
-		SpeedTolerance =
-			config.SpeedTolerance or 1.25,
+        SpeedTolerance =
+            config.SpeedTolerance or 1.25,
 
-		SampleInterval =
-			config.SampleInterval or 0.15,
+        SampleInterval =
+            config.SampleInterval or 0.15,
 
-		RequiredViolations =
-			config.RequiredViolations or 3,
+        RequiredViolations =
+            config.RequiredViolations or 3,
 
-		ViolationWindow =
-			config.ViolationWindow or 1,
+        ViolationWindow =
+            config.ViolationWindow or 1,
 
-		ShowGuiToAll =
-			config.ShowGuiToAll ~= false,
+        ShowGuiToAll =
+            config.ShowGuiToAll ~= false,
 
-		AdminUserIds =
-			config.AdminUserIds or {},
-	}
+        AdminUserIds =
+            config.AdminUserIds or {},
+    }
 
-	assert(
-		modules.LoopScanner,
-		"[AC-Checker] LoopScanner was not provided."
-	)
+    self.Logs =
+        modules.Logs.new(500)
 
-	assert(
-		modules.JumpScanner,
-		"[AC-Checker] JumpScanner was not provided."
-	)
+    self.LoopScanner =
+        modules.LoopScanner.new({
 
-	assert(
-		modules.Logs,
-		"[AC-Checker] Logs was not provided."
-	)
+            BaseSpeed =
+                self.Config.BaseSpeed,
 
-	self.Logs =
-		modules.Logs.new(500)
+            SprintSpeed =
+                self.Config.SprintSpeed,
 
-	self.LoopScanner =
-		modules.LoopScanner.new({
+            Tolerance =
+                self.Config.SpeedTolerance,
 
-			BaseSpeed =
-				self.Config.BaseSpeed,
+            SampleInterval =
+                self.Config.SampleInterval,
 
-			SprintSpeed =
-				self.Config.SprintSpeed,
+            RequiredViolations =
+                self.Config.RequiredViolations,
 
-			Tolerance =
-				self.Config.SpeedTolerance,
+            ViolationWindow =
+                self.Config.ViolationWindow,
 
-			SampleInterval =
-				self.Config.SampleInterval,
+            OnDetection =
+                function(data)
 
-			RequiredViolations =
-				self.Config.RequiredViolations,
+                    self:HandleDetection(
+                        data
+                    )
+                end,
+        })
 
-			ViolationWindow =
-				self.Config.ViolationWindow,
+    self.JumpScanner =
+        modules.JumpScanner.new({
 
-			OnDetection =
-				function(data)
+            OnDetection =
+                function(data)
 
-					self:HandleDetection(
-						data
-					)
+                    self:HandleDetection(
+                        data
+                    )
+                end,
+        })
 
-				end,
-		})
+    self.Started = false
+    self.Gui = nil
+    self.ActiveTab = "Loop"
 
-	self.JumpScanner =
-		modules.JumpScanner.new()
-
-	self.Started = false
-
-	self.PlayerAddedConnection = nil
-	self.PlayerRemovingConnection = nil
-
-	return self
+    return self
 end
 
-function ScannerCore:IsAdmin(player)
-
-	if self.Config.ShowGuiToAll then
-		return true
-	end
-
-	for _, userId in ipairs(
-		self.Config.AdminUserIds
-	) do
-
-		if player.UserId == userId then
-			return true
-		end
-	end
-
-	return false
-end
-
-function ScannerCore:HandleDetection(data)
-
-	local entry =
-		self.Logs:Add(data)
-
-	print(
-		string.format(
-			"[AC-Checker] SPEED DETECTION | %s | %.2f studs/s | limit %.2f | sprint=%s",
-
-			entry.PlayerName,
-
-			entry.Speed or 0,
-
-			entry.Limit or 0,
-
-			tostring(
-				entry.Sprinting
-			)
-		)
-	)
-
-	self:UpdateGui()
-end
-
---------------------------------------------------
--- GUI
---------------------------------------------------
-
-function ScannerCore:CreateGui(player)
-
-	if not self:IsAdmin(player) then
-		return
-	end
-
-	local playerGui =
-		player:FindFirstChildOfClass(
-			"PlayerGui"
-		)
-
-	if not playerGui then
-		return
-	end
-
-	local existing =
-		playerGui:FindFirstChild(
-			"ACCheckerGui"
-		)
-
-	if existing then
-		existing:Destroy()
-	end
-
-	local gui =
-		Instance.new("ScreenGui")
-
-	gui.Name =
-		"ACCheckerGui"
-
-	gui.ResetOnSpawn =
-		false
-
-	gui.Parent =
-		playerGui
-
-	local frame =
-		Instance.new("Frame")
-
-	frame.Name =
-		"Main"
-
-	frame.Size =
-		UDim2.fromOffset(
-			430,
-			320
-		)
-
-	frame.Position =
-		UDim2.new(
-			0,
-			25,
-			0.5,
-			-160
-		)
-
-	frame.BackgroundColor3 =
-		Color3.fromRGB(
-			25,
-			25,
-			25
-		)
-
-	frame.BorderSizePixel = 0
-
-	frame.Parent =
-		gui
-
-	local title =
-		Instance.new("TextLabel")
-
-	title.Size =
-		UDim2.new(
-			1,
-			0,
-			0,
-			45
-		)
-
-	title.BackgroundTransparency = 1
-
-	title.Text =
-		"AC-CHECKER"
-
-	title.TextColor3 =
-		Color3.fromRGB(
-			255,
-			255,
-			255
-		)
-
-	title.TextSize = 23
-
-	title.Font =
-		Enum.Font.GothamBold
-
-	title.Parent =
-		frame
-
-	local status =
-		Instance.new("TextLabel")
-
-	status.Name =
-		"Status"
-
-	status.Position =
-		UDim2.fromOffset(
-			20,
-			48
-		)
-
-	status.Size =
-		UDim2.new(
-			1,
-			-40,
-			0,
-			30
-		)
-
-	status.BackgroundTransparency = 1
-
-	status.TextXAlignment =
-		Enum.TextXAlignment.Left
-
-	status.Text =
-		"● ONLINE"
-
-	status.TextColor3 =
-		Color3.fromRGB(
-			80,
-			220,
-			120
-		)
-
-	status.TextSize = 15
-
-	status.Font =
-		Enum.Font.GothamMedium
-
-	status.Parent =
-		frame
-
-	local info =
-		Instance.new("TextLabel")
-
-	info.Name =
-		"Info"
-
-	info.Position =
-		UDim2.fromOffset(
-			20,
-			80
-		)
-
-	info.Size =
-		UDim2.new(
-			1,
-			-40,
-			0,
-			45
-		)
-
-	info.BackgroundTransparency = 1
-
-	info.TextXAlignment =
-		Enum.TextXAlignment.Left
-
-	info.TextColor3 =
-		Color3.fromRGB(
-			210,
-			210,
-			210
-		)
-
-	info.TextSize = 13
-
-	info.Font =
-		Enum.Font.Gotham
-
-	info.Parent =
-		frame
-
-	local list =
-		Instance.new("ScrollingFrame")
-
-	list.Name =
-		"Detections"
-
-	list.Position =
-		UDim2.fromOffset(
-			20,
-			130
-		)
-
-	list.Size =
-		UDim2.new(
-			1,
-			-40,
-			1,
-			-150
-		)
-
-	list.BackgroundColor3 =
-		Color3.fromRGB(
-			18,
-			18,
-			18
-		)
-
-	list.BorderSizePixel = 0
-
-	list.ScrollBarThickness = 5
-
-	list.CanvasSize =
-		UDim2.new()
-
-	list.Parent =
-		frame
-
-	local layout =
-		Instance.new(
-			"UIListLayout"
-		)
-
-	layout.Padding =
-		UDim.new(
-			0,
-			4
-		)
-
-	layout.Parent =
-		list
-
-	self:UpdateGuiForPlayer(
-		player
-	)
-end
-
-function ScannerCore:UpdateGuiForPlayer(
-	player
+function ScannerCore:IsAdmin(
+    player
 )
 
-	if not self:IsAdmin(player) then
-		return
-	end
+    if self.Config.ShowGuiToAll then
+        return true
+    end
 
-	local playerGui =
-		player:FindFirstChildOfClass(
-			"PlayerGui"
-		)
+    for _, userId in ipairs(
+        self.Config.AdminUserIds
+    ) do
 
-	if not playerGui then
-		return
-	end
+        if player.UserId == userId then
+            return true
+        end
+    end
 
-	local gui =
-		playerGui:FindFirstChild(
-			"ACCheckerGui"
-		)
-
-	if not gui then
-		self:CreateGui(player)
-		return
-	end
-
-	local frame =
-		gui:FindFirstChild("Main")
-
-	if not frame then
-		return
-	end
-
-	local info =
-		frame:FindFirstChild("Info")
-
-	local list =
-		frame:FindFirstChild(
-			"Detections"
-		)
-
-	if info then
-
-		info.Text =
-			string.format(
-				"Normal: %.1f | Sprint: %.1f | Detections: %d",
-
-				self.Config.BaseSpeed,
-
-				self.Config.SprintSpeed,
-
-				self.Logs:GetCount()
-			)
-	end
-
-	if not list then
-		return
-	end
-
-	for _, child in ipairs(
-		list:GetChildren()
-	) do
-
-		if child:IsA("TextLabel") then
-			child:Destroy()
-		end
-	end
-
-	local entries =
-		self.Logs:GetEntries()
-
-	for i = #entries, 1, -1 do
-
-		local entry =
-			entries[i]
-
-		local row =
-			Instance.new(
-				"TextLabel"
-			)
-
-		row.Size =
-			UDim2.new(
-				1,
-				-10,
-				0,
-				28
-			)
-
-		row.BackgroundColor3 =
-			Color3.fromRGB(
-				35,
-				35,
-				35
-			)
-
-		row.BorderSizePixel = 0
-
-		row.TextXAlignment =
-			Enum.TextXAlignment.Left
-
-		row.Text =
-			string.format(
-				"  %s | %.2f s/s | limit %.2f",
-
-				entry.PlayerName,
-
-				entry.Speed or 0,
-
-				entry.Limit or 0
-			)
-
-		row.TextColor3 =
-			Color3.fromRGB(
-				235,
-				235,
-				235
-			)
-
-		row.TextSize = 13
-
-		row.Font =
-			Enum.Font.Gotham
-
-		row.Parent =
-			list
-	end
-
-	task.defer(
-		function()
-
-			list.CanvasSize =
-				UDim2.new(
-					0,
-					0,
-					0,
-					list.AbsoluteCanvasSize.Y
-				)
-
-		end
-	)
+    return false
 end
 
-function ScannerCore:UpdateGui()
+function ScannerCore:HandleDetection(
+    data
+)
 
-	for _, player in ipairs(
-		Players:GetPlayers()
-	) do
+    self.Logs:Add(data)
 
-		if self:IsAdmin(player) then
-
-			self:UpdateGuiForPlayer(
-				player
-			)
-		end
-	end
+    self:RefreshGui()
 end
 
 --------------------------------------------------
--- LIFECYCLE
+-- GUI HELPERS
+--------------------------------------------------
+
+function ScannerCore:CreateLabel(
+    parent,
+    text,
+    size,
+    position,
+    textSize
+)
+
+    local label =
+        Instance.new(
+            "TextLabel"
+        )
+
+    label.Size = size
+    label.Position = position
+
+    label.BackgroundTransparency = 1
+
+    label.Text = text
+
+    label.TextColor3 =
+        Color3.fromRGB(
+            225,
+            225,
+            225
+        )
+
+    label.TextSize =
+        textSize or 14
+
+    label.Font =
+        Enum.Font.Gotham
+
+    label.TextXAlignment =
+        Enum.TextXAlignment.Left
+
+    label.Parent = parent
+
+    return label
+end
+
+function ScannerCore:CreateButton(
+    parent,
+    text,
+    size,
+    position
+)
+
+    local button =
+        Instance.new(
+            "TextButton"
+        )
+
+    button.Size = size
+    button.Position = position
+
+    button.BackgroundColor3 =
+        Color3.fromRGB(
+            32,
+            32,
+            32
+        )
+
+    button.BorderSizePixel = 0
+
+    button.Text = text
+
+    button.TextColor3 =
+        Color3.fromRGB(
+            220,
+            220,
+            220
+        )
+
+    button.TextSize = 13
+
+    button.Font =
+        Enum.Font.GothamMedium
+
+    button.AutoButtonColor = true
+
+    button.Parent = parent
+
+    return button
+end
+
+function ScannerCore:CreateGui(
+    player
+)
+
+    if not self:IsAdmin(player) then
+        return
+    end
+
+    local playerGui =
+        player:FindFirstChildOfClass(
+            "PlayerGui"
+        )
+
+    if not playerGui then
+        return
+    end
+
+    local old =
+        playerGui:FindFirstChild(
+            "ACCheckerGui"
+        )
+
+    if old then
+        old:Destroy()
+    end
+
+    local gui =
+        Instance.new(
+            "ScreenGui"
+        )
+
+    gui.Name =
+        "ACCheckerGui"
+
+    gui.ResetOnSpawn = false
+
+    gui.Parent =
+        playerGui
+
+    self.Gui = gui
+
+    local main =
+        Instance.new("Frame")
+
+    main.Name = "Main"
+
+    main.Size =
+        UDim2.fromOffset(
+            720,
+            430
+        )
+
+    main.Position =
+        UDim2.new(
+            0.5,
+            -360,
+            0.5,
+            -215
+        )
+
+    main.BackgroundColor3 =
+        Color3.fromRGB(
+            17,
+            17,
+            17
+        )
+
+    main.BorderSizePixel = 0
+
+    main.Parent = gui
+
+    local title =
+        self:CreateLabel(
+            main,
+            "AC-CHECKER",
+            UDim2.new(
+                1,
+                -40,
+                0,
+                45
+            ),
+            UDim2.fromOffset(
+                20,
+                8
+            ),
+            22
+        )
+
+    title.Font =
+        Enum.Font.GothamBold
+
+    local status =
+        self:CreateLabel(
+            main,
+            "● ONLINE",
+            UDim2.fromOffset(
+                120,
+                30
+            ),
+            UDim2.new(
+                1,
+                -145,
+                0,
+                13
+            ),
+            13
+        )
+
+    status.TextXAlignment =
+        Enum.TextXAlignment.Right
+
+    status.TextColor3 =
+        Color3.fromRGB(
+            80,
+            220,
+            120
+        )
+
+    local sidebar =
+        Instance.new("Frame")
+
+    sidebar.Name =
+        "Sidebar"
+
+    sidebar.Size =
+        UDim2.new(
+            0,
+            175,
+            1,
+            -65
+        )
+
+    sidebar.Position =
+        UDim2.fromOffset(
+            0,
+            65
+        )
+
+    sidebar.BackgroundColor3 =
+        Color3.fromRGB(
+            22,
+            22,
+            22
+        )
+
+    sidebar.BorderSizePixel = 0
+
+    sidebar.Parent = main
+
+    self:CreateLabel(
+        sidebar,
+        "SCANNERS",
+        UDim2.new(
+            1,
+            -30,
+            0,
+            30
+        ),
+        UDim2.fromOffset(
+            15,
+            15
+        ),
+        12
+    ).TextColor3 =
+        Color3.fromRGB(
+            140,
+            140,
+            140
+        )
+
+    local loopButton =
+        self:CreateButton(
+            sidebar,
+            "LOOP DETECTION",
+            UDim2.new(
+                1,
+                -20,
+                0,
+                48
+            ),
+            UDim2.fromOffset(
+                10,
+                55
+            )
+        )
+
+    local jumpButton =
+        self:CreateButton(
+            sidebar,
+            "JUMP DETECTION",
+            UDim2.new(
+                1,
+                -20,
+                0,
+                48
+            ),
+            UDim2.fromOffset(
+                10,
+                110
+            )
+        )
+
+    loopButton.MouseButton1Click:Connect(
+        function()
+
+            self.ActiveTab =
+                "Loop"
+
+            self:RefreshGui()
+        end
+    )
+
+    jumpButton.MouseButton1Click:Connect(
+        function()
+
+            self.ActiveTab =
+                "Jump"
+
+            self:RefreshGui()
+        end
+    )
+
+    local content =
+        Instance.new("Frame")
+
+    content.Name =
+        "Content"
+
+    content.Size =
+        UDim2.new(
+            1,
+            -195,
+            1,
+            -65
+        )
+
+    content.Position =
+        UDim2.fromOffset(
+            195,
+            65
+        )
+
+    content.BackgroundTransparency = 1
+
+    content.Parent = main
+
+    self.Content =
+        content
+
+    self:RefreshGui()
+end
+
+--------------------------------------------------
+-- DETECTION ROW
+--------------------------------------------------
+
+function ScannerCore:AddDetectionRow(
+    parent,
+    entry,
+    index
+)
+
+    local row =
+        Instance.new(
+            "Frame"
+        )
+
+    row.Size =
+        UDim2.new(
+            1,
+            -10,
+            0,
+            48
+        )
+
+    row.BackgroundColor3 =
+        Color3.fromRGB(
+            28,
+            28,
+            28
+        )
+
+    row.BorderSizePixel = 0
+
+    row.LayoutOrder =
+        index
+
+    row.Parent =
+        parent
+
+    local text
+
+    if entry.Type == "Speed" then
+
+        text =
+            string.format(
+                "%s\n%.2f studs/s  •  limit %.2f",
+
+                entry.PlayerName,
+
+                entry.Speed or 0,
+
+                entry.Limit or 0
+            )
+
+    elseif entry.Type == "Jump" then
+
+        text =
+            string.format(
+                "%s\n%.2f studs  •  max %.2f",
+
+                entry.PlayerName,
+
+                entry.Height or 0,
+
+                entry.MaxHeight or 0
+            )
+
+    else
+
+        text =
+            entry.PlayerName
+
+    end
+
+    self:CreateLabel(
+        row,
+        text,
+        UDim2.new(
+            1,
+            -20,
+            1,
+            0
+        ),
+        UDim2.fromOffset(
+            10,
+            0
+        ),
+        12
+    )
+end
+
+--------------------------------------------------
+-- REFRESH GUI
+--------------------------------------------------
+
+function ScannerCore:RefreshGui()
+
+    local content =
+        self.Content
+
+    if not content then
+        return
+    end
+
+    for _, child in ipairs(
+        content:GetChildren()
+    ) do
+
+        child:Destroy()
+    end
+
+    local heading
+
+    local subtitle
+
+    local entries = {}
+
+    for _, entry in ipairs(
+        self.Logs:GetEntries()
+    ) do
+
+        if self.ActiveTab == "Loop"
+            and entry.Type == "Speed" then
+
+            table.insert(
+                entries,
+                entry
+            )
+
+        elseif self.ActiveTab == "Jump"
+            and entry.Type == "Jump" then
+
+            table.insert(
+                entries,
+                entry
+            )
+        end
+    end
+
+    if self.ActiveTab == "Loop" then
+
+        heading =
+            "LOOP DETECTION"
+
+        subtitle =
+            string.format(
+                "Active scan  •  Normal %.1f studs/s  •  Sprint %.1f studs/s",
+
+                self.Config.BaseSpeed,
+
+                self.Config.SprintSpeed
+            )
+
+    else
+
+        heading =
+            "JUMP DETECTION"
+
+        subtitle =
+            "Active scan  •  Monitoring jump height and vertical movement"
+
+    end
+
+    self:CreateLabel(
+        content,
+        heading,
+        UDim2.new(
+            1,
+            -30,
+            0,
+            35
+        ),
+        UDim2.fromOffset(
+            15,
+            15
+        ),
+        21
+    ).Font =
+        Enum.Font.GothamBold
+
+    self:CreateLabel(
+        content,
+        subtitle,
+        UDim2.new(
+            1,
+            -30,
+            0,
+            30
+        ),
+        UDim2.fromOffset(
+            15,
+            50
+        ),
+        12
+    ).TextColor3 =
+        Color3.fromRGB(
+            145,
+            145,
+            145
+        )
+
+    local detectionsTitle =
+        self:CreateLabel(
+            content,
+            "DETECTIONS",
+            UDim2.new(
+                1,
+                -30,
+                0,
+                25
+            ),
+            UDim2.fromOffset(
+                15,
+                95
+            ),
+            12
+        )
+
+    detectionsTitle.TextColor3 =
+        Color3.fromRGB(
+            150,
+            150,
+            150
+        )
+
+    local list =
+        Instance.new(
+            "ScrollingFrame"
+        )
+
+    list.Name =
+        "DetectionList"
+
+    list.Size =
+        UDim2.new(
+            1,
+            -30,
+            1,
+            -135
+        )
+
+    list.Position =
+        UDim2.fromOffset(
+            15,
+            125
+        )
+
+    list.BackgroundColor3 =
+        Color3.fromRGB(
+            20,
+            20,
+            20
+        )
+
+    list.BorderSizePixel = 0
+
+    list.ScrollBarThickness = 5
+
+    list.CanvasSize =
+        UDim2.new(
+            0,
+            0,
+            0,
+            #entries * 54
+        )
+
+    list.Parent =
+        content
+
+    local layout =
+        Instance.new(
+            "UIListLayout"
+        )
+
+    layout.Padding =
+        UDim.new(
+            0,
+            6
+        )
+
+    layout.Parent =
+        list
+
+    if #entries == 0 then
+
+        local empty =
+            self:CreateLabel(
+                list,
+                "No detections recorded.",
+                UDim2.new(
+                    1,
+                    -20,
+                    0,
+                    40
+                ),
+                UDim2.fromOffset(
+                    10,
+                    10
+                ),
+                13
+            )
+
+        empty.TextColor3 =
+            Color3.fromRGB(
+                125,
+                125,
+                125
+            )
+
+    else
+
+        for i = #entries, 1, -1 do
+
+            self:AddDetectionRow(
+                list,
+                entries[i],
+                #entries - i + 1
+            )
+        end
+    end
+end
+
+--------------------------------------------------
+-- START / STOP
 --------------------------------------------------
 
 function ScannerCore:Start()
 
-	if self.Started then
-		return
-	end
+    if self.Started then
+        return
+    end
 
-	if not self.Config.Enabled then
+    if not self.Config.Enabled then
 
-		warn(
-			"[AC-Checker] Scanner disabled."
-		)
+        warn(
+            "[AC-Checker] Scanner disabled."
+        )
 
-		return
-	end
+        return
+    end
 
-	self.Started = true
+    self.Started = true
 
-	self.LoopScanner:Start()
-	self.JumpScanner:Start()
+    self.LoopScanner:Start()
+    self.JumpScanner:Start()
 
-	for _, player in ipairs(
-		Players:GetPlayers()
-	) do
+    for _, player in ipairs(
+        Players:GetPlayers()
+    ) do
 
-		task.defer(
-			function()
-				self:CreateGui(player)
-			end
-		)
-	end
+        if self:IsAdmin(player) then
 
-	self.PlayerAddedConnection =
-		Players.PlayerAdded:Connect(
-			function(player)
+            task.defer(
+                function()
 
-				task.defer(
-					function()
-						self:CreateGui(player)
-					end
-				)
+                    self:CreateGui(
+                        player
+                    )
 
-			end
-		)
+                end
+            )
+        end
+    end
 
-	self.PlayerRemovingConnection =
-		Players.PlayerRemoving:Connect(
-			function(player)
+    Players.PlayerAdded:Connect(
+        function(player)
 
-				self.Logs:ClearPlayer(
-					player.UserId
-				)
+            task.defer(
+                function()
 
-				self.LoopScanner:
-					ResetPlayer(
-						player
-					)
-			end
-		)
+                    self:CreateGui(
+                        player
+                    )
 
-	print(
-		"[AC-Checker] Scanner started."
-	)
+                end
+            )
+        end
+    )
 
+    print(
+        "[AC-Checker] Scanner started."
+    )
 end
 
 function ScannerCore:Stop()
 
-	if not self.Started then
-		return
-	end
+    if not self.Started then
+        return
+    end
 
-	self.Started = false
+    self.Started = false
 
-	self.LoopScanner:Stop()
-	self.JumpScanner:Stop()
+    self.LoopScanner:Stop()
+    self.JumpScanner:Stop()
 
-	if self.PlayerAddedConnection then
-		self.PlayerAddedConnection:Disconnect()
-		self.PlayerAddedConnection = nil
-	end
+    if self.Gui then
+        self.Gui:Destroy()
+        self.Gui = nil
+    end
 
-	if self.PlayerRemovingConnection then
-		self.PlayerRemovingConnection:Disconnect()
-		self.PlayerRemovingConnection = nil
-	end
-
-	print(
-		"[AC-Checker] Scanner stopped."
-	)
-end
-
-function ScannerCore:GetStatus()
-
-	return {
-
-		Enabled =
-			self.Config.Enabled,
-
-		Started =
-			self.Started,
-
-		BaseSpeed =
-			self.Config.BaseSpeed,
-
-		SprintSpeed =
-			self.Config.SprintSpeed,
-
-		DetectionCount =
-			self.Logs:GetCount(),
-	}
-end
-
-function ScannerCore:GetLogs()
-	return self.Logs:GetEntries()
+    print(
+        "[AC-Checker] Scanner stopped."
+    )
 end
 
 return ScannerCore
