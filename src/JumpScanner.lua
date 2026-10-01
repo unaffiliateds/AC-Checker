@@ -14,41 +14,66 @@ function JumpScanner.new(config)
     local self =
         setmetatable({}, JumpScanner)
 
-    -- We have not yet measured the game's exact
-    -- maximum jump height, so keep the existing
-    -- conservative height threshold for now.
+    -- Still retained as a secondary check.
+    -- We have not yet measured exact legitimate
+    -- maximum jump height.
     self.MaxJumpHeight =
         config.MaxJumpHeight or 12
 
-    -- Actual repeated live measurements:
-    -- approximately 51.865 studs/sec upward.
+    -- Repeated legitimate measurements:
+    -- 51.86499786376953
+    --
+    -- Rounded reference:
+    -- 51.865
     self.ExpectedJumpVelocity =
         config.ExpectedJumpVelocity or 51.865
 
-    -- Small safety margin above the observed value.
+    -- Detection threshold.
+    --
+    -- Legitimate measured peak:
+    -- 51.865
+    --
+    -- Allowed margin:
+    -- ~0.235
+    --
+    -- Anything above this is suspicious.
     self.MaxUpwardVelocity =
-        config.MaxUpwardVelocity or 53
+        config.MaxUpwardVelocity or 52.1
 
+    -- One abnormal jump is enough.
     self.RequiredViolations =
-        config.RequiredViolations or 2
+        config.RequiredViolations or 1
 
     self.OnDetection =
         config.OnDetection
 
-    self.States = {}
+    self.States =
+        {}
 
-    self.Running = false
-    self.Connection = nil
+    self.Running =
+        false
+
+    self.Connection =
+        nil
 
     return self
 end
+
+--------------------------------------------------
+-- RESET
+--------------------------------------------------
 
 function JumpScanner:ResetPlayer(
     player
 )
 
-    self.States[player] = nil
+    self.States[player] =
+        nil
 end
+
+--------------------------------------------------
+-- CHECK PLAYER
+--------------------------------------------------
 
 function JumpScanner:CheckPlayer(
     player
@@ -89,14 +114,17 @@ function JumpScanner:CheckPlayer(
 
         state = {
 
-            InAir = false,
+            InAir =
+                false,
 
             StartY =
                 root.Position.Y,
 
-            PeakUpwardVelocity = 0,
+            PeakUpwardVelocity =
+                0,
 
-            Violations = 0,
+            Violations =
+                0,
         }
 
         self.States[player] =
@@ -113,15 +141,21 @@ function JumpScanner:CheckPlayer(
         humanoidState ==
             Enum.HumanoidStateType.Freefall
 
-    -- Detect the start of a jump.
-    if airborne and not state.InAir then
+    --------------------------------------------------
+    -- JUMP START
+    --------------------------------------------------
 
-        state.InAir = true
+    if airborne
+        and not state.InAir then
+
+        state.InAir =
+            true
 
         state.StartY =
             root.Position.Y
 
-        state.PeakUpwardVelocity = 0
+        state.PeakUpwardVelocity =
+            0
 
         local velocity =
             root.AssemblyLinearVelocity.Y
@@ -131,14 +165,18 @@ function JumpScanner:CheckPlayer(
 
             state.PeakUpwardVelocity =
                 velocity
+
         end
 
         return
     end
 
-    -- While airborne, continuously track
-    -- the highest upward velocity observed.
-    if airborne and state.InAir then
+    --------------------------------------------------
+    -- TRACK PEAK WHILE AIRBORNE
+    --------------------------------------------------
+
+    if airborne
+        and state.InAir then
 
         local velocity =
             root.AssemblyLinearVelocity.Y
@@ -148,15 +186,21 @@ function JumpScanner:CheckPlayer(
 
             state.PeakUpwardVelocity =
                 velocity
+
         end
 
         return
     end
 
-    -- The jump has ended.
-    if not airborne and state.InAir then
+    --------------------------------------------------
+    -- LANDING
+    --------------------------------------------------
 
-        state.InAir = false
+    if not airborne
+        and state.InAir then
+
+        state.InAir =
+            false
 
         local height =
             root.Position.Y -
@@ -165,59 +209,93 @@ function JumpScanner:CheckPlayer(
         local peakVelocity =
             state.PeakUpwardVelocity
 
+        --------------------------------------------------
+        -- VELOCITY CHECK
+        --------------------------------------------------
+
         local velocityViolation =
             peakVelocity >
             self.MaxUpwardVelocity
+
+        --------------------------------------------------
+        -- HEIGHT CHECK
+        --------------------------------------------------
 
         local heightViolation =
             height >
             self.MaxJumpHeight
 
+        --------------------------------------------------
+        -- FINAL RESULT
+        --------------------------------------------------
+
         if velocityViolation
             or heightViolation then
 
-            state.Violations += 1
-
-            if state.Violations >=
-                self.RequiredViolations then
-
-                state.Violations = 0
-
-                if self.OnDetection then
-
-                    self.OnDetection({
-
-                        Type = "Jump",
-
-                        Player = player,
-
-                        Height = height,
-
-                        MaxHeight =
-                            self.MaxJumpHeight,
-
-                        PeakUpwardVelocity =
-                            peakVelocity,
-
-                        MaxUpwardVelocity =
-                            self.MaxUpwardVelocity,
-
-                        ExpectedJumpVelocity =
-                            self.ExpectedJumpVelocity,
-
-                        Time = os.time(),
-                    })
-                end
-            end
+            state.Violations +=
+                1
 
         else
 
-            state.Violations = 0
+            state.Violations =
+                0
+
         end
 
-        state.PeakUpwardVelocity = 0
+        --------------------------------------------------
+        -- DETECTION
+        --------------------------------------------------
+
+        if state.Violations >=
+            self.RequiredViolations then
+
+            state.Violations =
+                0
+
+            if self.OnDetection then
+
+                self.OnDetection({
+
+                    Type =
+                        "Jump",
+
+                    Player =
+                        player,
+
+                    Height =
+                        height,
+
+                    MaxHeight =
+                        self.MaxJumpHeight,
+
+                    PeakUpwardVelocity =
+                        peakVelocity,
+
+                    MaxUpwardVelocity =
+                        self.MaxUpwardVelocity,
+
+                    ExpectedJumpVelocity =
+                        self.ExpectedJumpVelocity,
+
+                    Time =
+                        os.time(),
+                })
+
+            end
+        end
+
+        --------------------------------------------------
+        -- RESET PEAK
+        --------------------------------------------------
+
+        state.PeakUpwardVelocity =
+            0
     end
 end
+
+--------------------------------------------------
+-- START
+--------------------------------------------------
 
 function JumpScanner:Start()
 
@@ -225,7 +303,8 @@ function JumpScanner:Start()
         return
     end
 
-    self.Running = true
+    self.Running =
+        true
 
     self.Connection =
         RunService.Heartbeat:Connect(
@@ -242,6 +321,7 @@ function JumpScanner:Start()
                     self:CheckPlayer(
                         player
                     )
+
                 end
             end
         )
@@ -251,15 +331,21 @@ function JumpScanner:Start()
     )
 end
 
+--------------------------------------------------
+-- STOP
+--------------------------------------------------
+
 function JumpScanner:Stop()
 
-    self.Running = false
+    self.Running =
+        false
 
     if self.Connection then
 
         self.Connection:Disconnect()
-        self.Connection = nil
 
+        self.Connection =
+            nil
     end
 
     table.clear(
