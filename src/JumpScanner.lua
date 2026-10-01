@@ -4,6 +4,9 @@ local Players =
 local RunService =
     game:GetService("RunService")
 
+local ReplicatedStorage =
+    game:GetService("ReplicatedStorage")
+
 local JumpScanner = {}
 JumpScanner.__index = JumpScanner
 
@@ -14,38 +17,57 @@ function JumpScanner.new(config)
     local self =
         setmetatable({}, JumpScanner)
 
-    -- Still retained as a secondary check.
-    -- We have not yet measured exact legitimate
-    -- maximum jump height.
-    self.MaxJumpHeight =
-        config.MaxJumpHeight or 12
+    --------------------------------------------------
+    -- CONFIRMED GAME VALUES
+    --------------------------------------------------
 
-    -- Repeated legitimate measurements:
-    -- 51.86499786376953
-    --
-    -- Rounded reference:
-    -- 51.865
+    -- Game's replicated custom jump value.
+    self.ExpectedGameJumpPower =
+        config.ExpectedGameJumpPower or 53.5
+
+    -- Repeated legitimate measured peak.
     self.ExpectedJumpVelocity =
         config.ExpectedJumpVelocity or 51.865
 
-    -- Detection threshold.
-    --
-    -- Legitimate measured peak:
-    -- 51.865
-    --
-    -- Allowed margin:
-    -- ~0.235
-    --
-    -- Anything above this is suspicious.
+    -- Anything above this measured physical
+    -- velocity is suspicious.
     self.MaxUpwardVelocity =
         config.MaxUpwardVelocity or 52.1
 
-    -- One abnormal jump is enough.
-    self.RequiredViolations =
-        config.RequiredViolations or 1
+    -- Retained as a secondary physical check.
+    -- Exact legitimate max height still needs
+    -- to be measured.
+    self.MaxJumpHeight =
+        config.MaxJumpHeight or 12
+
+    --------------------------------------------------
+    -- HUMANOID BASELINE
+    --
+    -- The live game currently has:
+    -- UseJumpPower = false
+    -- JumpPower = 0
+    -- JumpHeight = 0
+    --------------------------------------------------
+
+    self.ExpectedUseJumpPower =
+        false
+
+    self.ExpectedHumanoidJumpPower =
+        0
+
+    self.ExpectedHumanoidJumpHeight =
+        0
+
+    --------------------------------------------------
+    -- CALLBACK
+    --------------------------------------------------
 
     self.OnDetection =
         config.OnDetection
+
+    --------------------------------------------------
+    -- STATE
+    --------------------------------------------------
 
     self.States =
         {}
@@ -72,6 +94,89 @@ function JumpScanner:ResetPlayer(
 end
 
 --------------------------------------------------
+-- GET GAME JUMP POWER
+--------------------------------------------------
+
+function JumpScanner:GetGameJumpPower()
+
+    local gameConstants =
+        ReplicatedStorage:
+        FindFirstChild(
+            "GameConstants"
+        )
+
+    if gameConstants then
+
+        local value =
+            gameConstants:
+            FindFirstChild(
+                "JumpPower"
+            )
+
+        if value
+            and value:IsA(
+                "NumberValue"
+            ) then
+
+            return value.Value
+        end
+    end
+
+    return nil
+end
+
+--------------------------------------------------
+-- REPORT DETECTION
+--------------------------------------------------
+
+function JumpScanner:Detect(
+    player,
+    reason,
+    data
+)
+
+    if not self.OnDetection then
+        return
+    end
+
+    data =
+        data or {}
+
+    self.OnDetection({
+
+        Type =
+            "Jump",
+
+        Player =
+            player,
+
+        Height =
+            data.Height or 0,
+
+        MaxHeight =
+            self.MaxJumpHeight,
+
+        PeakUpwardVelocity =
+            data.PeakUpwardVelocity or 0,
+
+        MaxUpwardVelocity =
+            self.MaxUpwardVelocity,
+
+        ExpectedJumpVelocity =
+            self.ExpectedJumpVelocity,
+
+        ExpectedGameJumpPower =
+            self.ExpectedGameJumpPower,
+
+        Reason =
+            reason,
+
+        Time =
+            os.time(),
+    })
+end
+
+--------------------------------------------------
 -- CHECK PLAYER
 --------------------------------------------------
 
@@ -83,8 +188,10 @@ function JumpScanner:CheckPlayer(
         player.Character
 
     if not character then
+
         self:ResetPlayer(player)
         return
+
     end
 
     local humanoid =
@@ -98,14 +205,98 @@ function JumpScanner:CheckPlayer(
         )
 
     if not humanoid or not root then
+
         self:ResetPlayer(player)
         return
+
     end
 
     if humanoid.Health <= 0 then
+
         self:ResetPlayer(player)
         return
+
     end
+
+    --------------------------------------------------
+    -- DIRECT HUMANOID CHECK
+    --
+    -- Your game uses custom jump logic, so the normal
+    -- Humanoid jump properties are expected to remain:
+    --
+    -- UseJumpPower = false
+    -- JumpPower = 0
+    -- JumpHeight = 0
+    --
+    -- A change to those properties is suspicious.
+    --------------------------------------------------
+
+    if humanoid.UseJumpPower ~=
+        self.ExpectedUseJumpPower then
+
+        self:Detect(
+            player,
+            "Humanoid.UseJumpPower"
+        )
+
+        return
+    end
+
+    if math.abs(
+        humanoid.JumpPower -
+        self.ExpectedHumanoidJumpPower
+    ) > 0.01 then
+
+        self:Detect(
+            player,
+            "Humanoid.JumpPower"
+        )
+
+        return
+    end
+
+    if math.abs(
+        humanoid.JumpHeight -
+        self.ExpectedHumanoidJumpHeight
+    ) > 0.01 then
+
+        self:Detect(
+            player,
+            "Humanoid.JumpHeight"
+        )
+
+        return
+    end
+
+    --------------------------------------------------
+    -- DIRECT GAME-CONFIG CHECK
+    --
+    -- Expected custom game JumpPower = 53.5.
+    --
+    -- This catches a modified GameConstants value
+    -- even when Humanoid.UseJumpPower is false.
+    --------------------------------------------------
+
+    local configuredJumpPower =
+        self:GetGameJumpPower()
+
+    if configuredJumpPower
+        and math.abs(
+            configuredJumpPower -
+            self.ExpectedGameJumpPower
+        ) > 0.01 then
+
+        self:Detect(
+            player,
+            "GameConstants.JumpPower"
+        )
+
+        return
+    end
+
+    --------------------------------------------------
+    -- STATE
+    --------------------------------------------------
 
     local state =
         self.States[player]
@@ -122,14 +313,15 @@ function JumpScanner:CheckPlayer(
 
             PeakUpwardVelocity =
                 0,
-
-            Violations =
-                0,
         }
 
         self.States[player] =
             state
     end
+
+    --------------------------------------------------
+    -- HUMANOID STATE
+    --------------------------------------------------
 
     local humanoidState =
         humanoid:GetState()
@@ -155,24 +347,16 @@ function JumpScanner:CheckPlayer(
             root.Position.Y
 
         state.PeakUpwardVelocity =
-            0
-
-        local velocity =
-            root.AssemblyLinearVelocity.Y
-
-        if velocity >
-            state.PeakUpwardVelocity then
-
-            state.PeakUpwardVelocity =
-                velocity
-
-        end
+            math.max(
+                0,
+                root.AssemblyLinearVelocity.Y
+            )
 
         return
     end
 
     --------------------------------------------------
-    -- TRACK PEAK WHILE AIRBORNE
+    -- TRACK PEAK
     --------------------------------------------------
 
     if airborne
@@ -186,7 +370,6 @@ function JumpScanner:CheckPlayer(
 
             state.PeakUpwardVelocity =
                 velocity
-
         end
 
         return
@@ -210,83 +393,60 @@ function JumpScanner:CheckPlayer(
             state.PeakUpwardVelocity
 
         --------------------------------------------------
-        -- VELOCITY CHECK
+        -- PHYSICAL VELOCITY CHECK
         --------------------------------------------------
 
-        local velocityViolation =
-            peakVelocity >
-            self.MaxUpwardVelocity
+        if peakVelocity >
+            self.MaxUpwardVelocity then
 
-        --------------------------------------------------
-        -- HEIGHT CHECK
-        --------------------------------------------------
+            self:Detect(
 
-        local heightViolation =
-            height >
-            self.MaxJumpHeight
+                player,
 
-        --------------------------------------------------
-        -- FINAL RESULT
-        --------------------------------------------------
+                "PeakUpwardVelocity",
 
-        if velocityViolation
-            or heightViolation then
-
-            state.Violations +=
-                1
-
-        else
-
-            state.Violations =
-                0
-
-        end
-
-        --------------------------------------------------
-        -- DETECTION
-        --------------------------------------------------
-
-        if state.Violations >=
-            self.RequiredViolations then
-
-            state.Violations =
-                0
-
-            if self.OnDetection then
-
-                self.OnDetection({
-
-                    Type =
-                        "Jump",
-
-                    Player =
-                        player,
-
+                {
                     Height =
                         height,
 
-                    MaxHeight =
-                        self.MaxJumpHeight,
-
                     PeakUpwardVelocity =
                         peakVelocity,
+                }
+            )
 
-                    MaxUpwardVelocity =
-                        self.MaxUpwardVelocity,
+            state.PeakUpwardVelocity =
+                0
 
-                    ExpectedJumpVelocity =
-                        self.ExpectedJumpVelocity,
-
-                    Time =
-                        os.time(),
-                })
-
-            end
+            return
         end
 
         --------------------------------------------------
-        -- RESET PEAK
+        -- PHYSICAL HEIGHT CHECK
         --------------------------------------------------
+
+        if height >
+            self.MaxJumpHeight then
+
+            self:Detect(
+
+                player,
+
+                "JumpHeight",
+
+                {
+                    Height =
+                        height,
+
+                    PeakUpwardVelocity =
+                        peakVelocity,
+                }
+            )
+
+            state.PeakUpwardVelocity =
+                0
+
+            return
+        end
 
         state.PeakUpwardVelocity =
             0
@@ -346,6 +506,7 @@ function JumpScanner:Stop()
 
         self.Connection =
             nil
+
     end
 
     table.clear(
