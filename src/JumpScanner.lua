@@ -14,11 +14,20 @@ function JumpScanner.new(config)
     local self =
         setmetatable({}, JumpScanner)
 
+    -- We have not yet measured the game's exact
+    -- maximum jump height, so keep the existing
+    -- conservative height threshold for now.
     self.MaxJumpHeight =
         config.MaxJumpHeight or 12
 
+    -- Actual repeated live measurements:
+    -- approximately 51.865 studs/sec upward.
+    self.ExpectedJumpVelocity =
+        config.ExpectedJumpVelocity or 51.865
+
+    -- Small safety margin above the observed value.
     self.MaxUpwardVelocity =
-        config.MaxUpwardVelocity or 55
+        config.MaxUpwardVelocity or 53
 
     self.RequiredViolations =
         config.RequiredViolations or 2
@@ -79,12 +88,19 @@ function JumpScanner:CheckPlayer(
     if not state then
 
         state = {
+
             InAir = false,
-            StartY = root.Position.Y,
+
+            StartY =
+                root.Position.Y,
+
+            PeakUpwardVelocity = 0,
+
             Violations = 0,
         }
 
-        self.States[player] = state
+        self.States[player] =
+            state
     end
 
     local humanoidState =
@@ -97,23 +113,48 @@ function JumpScanner:CheckPlayer(
         humanoidState ==
             Enum.HumanoidStateType.Freefall
 
+    -- Detect the start of a jump.
     if airborne and not state.InAir then
 
         state.InAir = true
+
         state.StartY =
             root.Position.Y
+
+        state.PeakUpwardVelocity = 0
 
         local velocity =
             root.AssemblyLinearVelocity.Y
 
         if velocity >
-            self.MaxUpwardVelocity then
+            state.PeakUpwardVelocity then
 
-            state.Violations += 1
-
+            state.PeakUpwardVelocity =
+                velocity
         end
 
-    elseif not airborne and state.InAir then
+        return
+    end
+
+    -- While airborne, continuously track
+    -- the highest upward velocity observed.
+    if airborne and state.InAir then
+
+        local velocity =
+            root.AssemblyLinearVelocity.Y
+
+        if velocity >
+            state.PeakUpwardVelocity then
+
+            state.PeakUpwardVelocity =
+                velocity
+        end
+
+        return
+    end
+
+    -- The jump has ended.
+    if not airborne and state.InAir then
 
         state.InAir = false
 
@@ -121,8 +162,19 @@ function JumpScanner:CheckPlayer(
             root.Position.Y -
             state.StartY
 
-        if height >
-            self.MaxJumpHeight then
+        local peakVelocity =
+            state.PeakUpwardVelocity
+
+        local velocityViolation =
+            peakVelocity >
+            self.MaxUpwardVelocity
+
+        local heightViolation =
+            height >
+            self.MaxJumpHeight
+
+        if velocityViolation
+            or heightViolation then
 
             state.Violations += 1
 
@@ -144,9 +196,17 @@ function JumpScanner:CheckPlayer(
                         MaxHeight =
                             self.MaxJumpHeight,
 
+                        PeakUpwardVelocity =
+                            peakVelocity,
+
+                        MaxUpwardVelocity =
+                            self.MaxUpwardVelocity,
+
+                        ExpectedJumpVelocity =
+                            self.ExpectedJumpVelocity,
+
                         Time = os.time(),
                     })
-
                 end
             end
 
@@ -154,6 +214,8 @@ function JumpScanner:CheckPlayer(
 
             state.Violations = 0
         end
+
+        state.PeakUpwardVelocity = 0
     end
 end
 
